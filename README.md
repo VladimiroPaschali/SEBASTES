@@ -197,9 +197,13 @@ While recording in stereo mode with a calibration, SEBASTES guides the clicks: t
 2. Click the same point of the head in the right image. This creates a **stereo target**: SEBASTES computes its 3D position and range (`r`, cm) and the reprojection error (`e`, px, should be a few pixels at most).
 3. Click the tail in the left image, then the same point of the tail in the right image.
 
-SEBASTES then saves the length as the target's line (the measurement chosen in the list next to **Measure Target**, `length` by default) and is ready for the next fish. Shift is needed only for the first click. With **Auto Match** ticked, the right-image points are found for you: one click on the head and one on the tail. **Esc** cancels the fish being marked; after the head, it keeps the target without a length.
+SEBASTES then saves the length as the target's line (the measurement chosen in the list next to **Measure Target**, `length` by default), asks a name for it and is ready for the next fish. The name offered is the species followed by the next free number (`Sargus 1`, `Sargus 2`, ...), or the name the fish already has when it is measured again or for another measurement; **Enter** accepts it and **Cancel** keeps it. Shift is needed only for the first click. With **Auto Match** ticked, the right-image points are found for you: one click on the head and one on the tail. **Esc** cancels the fish being marked; after the head, it keeps the target without a length.
 
-The target label is drawn beyond the head and the length label beyond the tail, so they don't overlap. They appear when **Show Labels** is ticked. Lengths are saved in the `lines` table; for the units, see Stereo calibration.
+The target label is drawn beyond the head and the length label beyond the tail (or above/below them when there is no room), so they don't overlap. They appear when **Show Labels** is ticked. Lengths and names are saved in the `lines` table (`NAME` column, also in `*_lines.csv`); for the units, see Stereo calibration.
+
+The **Measurements** panel, between the right image and the species buttons, lists every measurement of the deployment: name, frame, target, species, measurement, length, distance from the left camera (cm) and error. Drag its edge to resize it. Double-click a name to change it; click a row to go to that frame and select the fish; click a column header to sort.
+
+Outside Record the marks and measurements of each frame are still shown, read only, with the measurement names in the length labels. Clicking a row of the Measurements panel shows that fish as usual and fades the other fish of the same frame, until you move to another frame.
 
 - **Plain click** in the left image: marks the fish in that image only. Use it to count fish. These marks cannot be measured.
 - **Right-click** a mark to select its target. **Delete** removes the selected target.

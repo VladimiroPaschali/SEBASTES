@@ -7,7 +7,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from ui import ui_SEBASTES_dockable
-import pyStereoComp, dbConnection, videoSource
+import pyStereoComp, dbConnection, videoSource, measurementsdock
 import numpy as ny
 import cv2
 from math import *
@@ -142,6 +142,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.fishHead = None
         self.fishHeadMarks = None
         self.fishLines = {}
+        self.previousLineName = None
+        # (frame, target) chosen in the Measurements panel, shown over the other fish when not recording
+        self.annotationFocus = None
         self.gridLines = {self.gvLeft:[], self.gvRight:[]}
         self.randomCellLines = {self.gvLeft:[], self.gvRight:[]}
         self.speciesInGrid=set()
@@ -189,6 +192,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.metadataDockWidget.hide()
         self.speciesDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
         self.speciesDockWidget.hide()
+        # Measurements panel, between the right image and the species buttons
+        self.measurementsDock=measurementsdock.MeasurementsDock(self)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.measurementsDock)
+        self.splitDockWidget(self.measurementsDock, self.speciesDockWidget, Qt.Orientation.Horizontal)
+        self.measurementsDock.goToTarget.connect(self.showMeasurement)
+        self.measurementsDock.hide()
         self.toolsDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
 
         for box in self.optionsBoxes:
@@ -905,6 +914,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 for field in dropfileds:
                     self.dataDB.dbExec("ALTER TABLE TARGETS DROP COLUMN "+field+';')
                 
+            # measurement names
+            query = self.dataDB.dbQuery("PRAGMA table_info('LINES')")
+            fields=[]
+            for field in query:
+                fields.append(field[1])
+            if not 'NAME' in fields:
+                self.dataDB.dbExec("ALTER TABLE LINES ADD COLUMN NAME TEXT;")
             # now select profile
             if not self.activeProfile:
                 # check to see if theres already an entry frop this dep
@@ -1111,6 +1127,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.toggleRecord()
             self.imageSlider.setValue(1)
             self.playBtn.setEnabled(True)
+            self.measurementsDock.setDeployment(self.dataDB, self.deployment)
+            if self.measurementsDock.isHidden():
+                self.measurementsDock.show()
+                # wide enough for the columns but not more than 30 % of the window; the user can drag its edge
+                self.resizeDocks([self.measurementsDock], [min(self.measurementsDock.preferredWidth(), int(0.3*self.width()))], Qt.Orientation.Horizontal)
             return True
         except:
             self.showError()
@@ -1309,6 +1330,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if self.recordBtn.isChecked():
                 self.reloadData()
                 self.incrementCounters()
+            else:
+                # read only
+                self.showAnnotations()
             self.currentTarget=0
             self.updateFishGuide()
             if self.gridSetup['PersistentGrid'] and self.gridCheck.isChecked():
@@ -2024,6 +2048,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.showError()
             
     def deleteSelMark(self):
+        if not self.recordBtn.isChecked():
+            # outside Record the marks are read only
+            return
         if len(self.__selectedItems)>0:
             item =self.__selectedItems[0]# it it is a pair, grab just one
             reply=QMessageBox.warning(self, "WARNING", "Sure you want to delete the mark(s)?",  QMessageBox.Yes, QMessageBox.No)
@@ -2045,6 +2072,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 boxTarget=self.boxMarks[item][0]
                 self.dataDB.dbExec("DELETE FROM bounding_boxes WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(boxTarget)+"  AND deployment_ID='"+self.deployment+"'")
             self.__changeImage()
+            self.measurementsDock.refresh()
                 # zoom back if there are any active targets in either frame
         self.incrementCounters()
 
@@ -2147,6 +2175,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
         label=self.measurementBox.currentText()
         values=[str(v) for v in self.targetStereoData]
+        self.keepLineName(self.fishTarget, label)
         # one line per measurement type and target
         self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.fishTarget)+
             " AND line_label='"+label+"' AND deployment_ID='"+self.deployment+"'")
@@ -2163,10 +2192,60 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.fishStep=0
         self.fishLines={}
         self.updateFishGuide()
-        self.statusBar.showMessage('Target '+str(self.fishTarget)+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '+
+        name=self.nameMeasurement(self.fishTarget, label)
+        self.statusBar.showMessage(name+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '+
                 self.statusBar.currentMessage())
         if self.showDataCheck.isChecked():
             self.datadlg.refreshView()
+
+    def keepLineName(self, target, label):
+        # remember the name of a measurement about to be replaced, to offer it again
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+            " AND target_number="+str(target)+" AND line_label='"+label+"'")
+        for name, in query:
+            if name:
+                self.previousLineName=(self.frameBox.text(), target, label, name)
+
+    def defaultMeasurementName(self, target, label):
+        '''
+        The name offered for a new measurement: its old name when it is measured again, else the
+        name of another measurement of the same fish, else the fish's species followed by the
+        next free number in the deployment (Sargus 1, Sargus 2, ...).
+        '''
+        previous=getattr(self, 'previousLineName', None)
+        self.previousLineName=None
+        if previous and previous[:3]==(self.frameBox.text(), target, label):
+            return previous[3]
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+            " AND target_number="+str(target)+" AND line_label<>'"+label+"'")
+        for name, in query:
+            if name:
+                return name
+        species=None
+        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+            " AND target_number="+str(target))
+        for species, in query:
+            pass
+        species=species or 'Fish'
+        numbers=[0]
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"'")
+        for name, in query:
+            if name and name.startswith(species+' ') and name[len(species)+1:].isdigit():
+                numbers.append(int(name[len(species)+1:]))
+        return species+' '+str(max(numbers)+1)
+
+    def nameMeasurement(self, target, label):
+        '''
+        nameMeasurement asks the name of the measurement just saved and stores it. Cancel keeps
+        the name offered. Names can be changed later in the Measurements panel.
+        '''
+        default=self.defaultMeasurementName(target, label)
+        name, ok=QInputDialog.getText(self, 'Measurement name', 'Name of this '+label+' measurement:', QLineEdit.EchoMode.Normal, default)
+        name=name.strip() if ok and name.strip() else default
+        self.dataDB.dbExec("UPDATE lines SET name='"+name.replace("'", "''")+"' WHERE deployment_id='"+self.deployment+"' AND frame_number="+
+            self.frameBox.text()+" AND target_number="+str(target)+" AND line_label='"+label+"'")
+        self.measurementsDock.refresh()
+        return name
 
     def separateLabels(self, mark, line):
         '''
@@ -2317,6 +2396,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
                                         "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                         ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
+                            self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
                         self.measureBtn.setChecked(False)
 
                 else: # line is drawn on only one side
@@ -2419,6 +2499,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
                                             "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                             ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
+                                self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
                             self.measureBtn.setChecked(False)
 
 
@@ -2523,6 +2604,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         dlg.goToTargetEvent.connect(self.changeSelectionFromTable)
         dlg.exec()
         self.__changeImage()
+        self.measurementsDock.refresh()
     
     def changeSelectionFromTable(self, frame, target, zoom=None):
         frameIndex=self.leftImageFrames.index(frame)
@@ -2593,6 +2675,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.annotator=dlg.annotator
             self.frameCommentDlg=framecommentdlg.CommentDlg(self)
             self.frameCommentDlg.hide()
+            # replace the read only marks with editable ones
+            self.clearMarks()
             self.reloadData()
             for widget in self.recordEnableWidgets:
                 if widget in [self.measureBtn,  self.measurementBox] and self.monoRadio.isChecked(): # dont enable widgets for mono mode
@@ -2615,6 +2699,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             #self.groupBoxView.hide()
             self.deSelect()
             self.clearMarks()
+            self.showAnnotations()
 
             try:
                 self.datadlg.hide()
@@ -2679,6 +2764,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             target_number, = query.first()
             if target_number!=None:
                 # clear out current length measurements
+                self.keepLineName(self.currentTarget, self.measurementBox.currentText())
                 self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND line_label='"+self.measurementBox.currentText()+"' AND deployment_ID='"+self.deployment+"'")
                 # reload frame
                             # get the zoom state
@@ -2822,6 +2908,81 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.showError()
 
     
+
+    def showAnnotations(self):
+        '''
+        showAnnotations draws the targets and measurements of the frame when not recording, read
+        only. After a measurement is chosen in the Measurements panel, its fish is drawn as usual
+        and the other fish of that frame are faded.
+        '''
+        self.clearMarks()
+        if self.dataDB is None or self.noLoad:
+            return
+        frame=self.frameBox.text()
+        if not frame.isdigit():
+            return
+        focus=None
+        if self.annotationFocus:
+            if str(self.annotationFocus[0])==frame:
+                focus=self.annotationFocus[1]
+            else:
+                # the chosen measurement is on another frame
+                self.annotationFocus=None
+        size=self.guiSettings['LabelTextSize']
+        query=self.dataDB.dbQuery("SELECT target_number, species_group FROM targets WHERE frame_number="+frame+" AND deployment_id='"+self.deployment+"'")
+        for target, species_group in query:
+            target=int(target)
+            alpha=255 if focus is None or target==focus else 60
+            col=self.guiSettings['SceneColor']
+            if species_group in self.speciesList:
+                col=self.spcColors[self.speciesList.index(species_group)]
+            spcLabel=''
+            if self.guiSettings['LabelSpeciesParam']>0 and species_group:
+                spcLabel=' '+species_group[0:self.guiSettings['LabelSpeciesParam']]
+            query1=self.dataDB.dbQuery("SELECT LX, LY, RX, RY, Range, Error FROM points WHERE frame_number="+frame+" AND deployment_id='"+self.deployment+
+                "' AND target_number="+str(target))
+            for LX, LY, RX, RY, Range, Error in query1:
+                style='o' if LX!=None and RX!=None else '+'
+                for imageObj, x, y in [(self.gvLeft, LX, LY), (self.gvRight, RX, RY)]:
+                    if x==None:
+                        continue
+                    marker=imageObj.addMark(QPointF(float(x), float(y)), style=style, color=col, size=1.0, thickness=1.0, alpha=alpha, selectable=False)
+                    self.pointMarks.update({marker:[target, imageObj]})
+                    text=str(target)
+                    if imageObj==self.gvLeft and style=='o' and Range!=None:
+                        text=text+" r = "+str(round(float(Range), 2))+"  e = "+str(round(float(Error), 2))
+                    marker.addLabel(text+spcLabel, color=col, alpha=alpha, size=size, offset=self.textOffset, name='tnumber')
+                    if not self.labelCheck.isChecked():
+                        marker.hideLabels(None)
+            query2=self.dataDB.dbQuery("SELECT line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, Length, Error, name FROM lines WHERE frame_number="+frame+
+                " AND deployment_id='"+self.deployment+"' AND target_number="+str(target))
+            for line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, Length, Error, name in query2:
+                lineObjs={}
+                for imageObj, x1, y1, x2, y2 in [(self.gvLeft, LX1, LY1, LX2, LY2), (self.gvRight, RX1, RY1, RX2, RY2)]:
+                    if QPointF(float(x1), float(y1))==QPointF(float(x2), float(y2)):
+                        continue
+                    lineObjs[imageObj]=imageObj.addDimensionLine(QPointF(float(x1), float(y1)), QPointF(float(x2), float(y2)), taillength=self.guiSettings['MeasureLineTailLength'],
+                            thickness=self.guiSettings['MeasureLineWidth'], color=self.guiSettings['TargetLineColor'], alpha=alpha)
+                    self.lineMarks.update({lineObjs[imageObj]:[target, imageObj]})
+                if self.gvLeft in lineObjs:
+                    text=line_label[0:3]+" = "+str(round(float(Length), 2))+" e = "+str(round(float(Error), 2))
+                    if name:
+                        text=name+": "+text
+                    lineObjs[self.gvLeft].addLabel(QPointF(float(LX1), float(LY1)), text, color=self.guiSettings['TargetLineColor'], alpha=alpha, size=size)
+                    if not self.labelCheck.isChecked():
+                        lineObjs[self.gvLeft].hideLabels(None)
+            self.separateTargetLabels(target)
+
+    def showMeasurement(self, frame, target):
+        '''
+        showMeasurement goes to the frame of a row clicked in the Measurements panel and shows its
+        fish: selected while recording, otherwise drawn over the faded other fish of the frame.
+        '''
+        self.annotationFocus=(frame, target)
+        if not self.recordBtn.isChecked() and self.leftImageFrames[self.imageSlider.value()]==frame:
+            # same frame: the slider doesn't move, redraw here
+            self.showAnnotations()
+        self.changeSelectionFromTable(frame, target)
 
     def reloadData(self):
         if not self.recordBtn.isChecked():
@@ -3060,6 +3221,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.lineMarks={}
         self.pointMarks={}
         self.boxMarks={}
+        # the marks are deleted: forget any reference to them
+        self.__selectedItems=[]
+        self.activeMark[self.gvLeft]=None
+        self.activeMark[self.gvRight]=None
 
     def copyImg(self):
         dirDlg = QFileDialog(self)
@@ -3205,6 +3370,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 frame_number+" AND target_number="+target_number+" AND line_label='"+line_label+"'")
             QMessageBox.warning(self, "INFO", "Positions have been recalculated :-)")
             self.__changeImage()
+            self.measurementsDock.refresh()
         except:
             self.showError()
             
