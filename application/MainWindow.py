@@ -253,26 +253,22 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             obj.rubberBandKey=None
             obj.image.keepEnhanced=True
             
-        #  determine the current screen size
-        screenObj = QGuiApplication.primaryScreen();
-        screenGeometery = screenObj.geometry()
         #  restore the application state
         self.appSettings = QSettings('afsc.noaa.gov', 'Sebastes')
         position = self.appSettings.value('winposition', QPoint(10,10))
         size = self.appSettings.value('winsize', QSize(940,646))
 
-        #  check if our last window size is too big for our current screen
-        if (size.width() > screenGeometery.width()):
-            size.setWidth(screenGeometery.width() - 50)
-        if (size.height() > screenGeometery.height()):
-            size.setHeight(screenGeometery.height() - 50)
-
-        #  now check if our last position is at least on our current desktop
-        #  if it is off the screen we just throw it up at 0
-        if (position.x() > size.width() - 50):
-            position.setX(0)
-        if (position.y() > size.height() - 50):
-            position.setY(0)
+        #  Keep valid positions on secondary monitors, including negative coordinates.
+        #  If that monitor was disconnected, use the primary screen instead.
+        screenObj = QGuiApplication.screenAt(position) or QGuiApplication.primaryScreen()
+        screenGeometry = screenObj.availableGeometry()
+        #  Leave room for the window frame and title bar, and exclude the taskbar.
+        size.setWidth(max(1, min(size.width(), screenGeometry.width() - 50)))
+        size.setHeight(max(1, min(size.height(), screenGeometry.height() - 50)))
+        position.setX(max(screenGeometry.left(), min(position.x(),
+            screenGeometry.right() - size.width() - 49)))
+        position.setY(max(screenGeometry.top(), min(position.y(),
+            screenGeometry.bottom() - size.height() - 49)))
 
         #  now move and resize the window
         self.move(position)
