@@ -72,6 +72,24 @@ class QEnhancedImage(QObject):
         self.updateImage()
 
 
+    def fromCvImage(self, imageData):
+        """
+        Set the image to an OpenCV (BGR) numpy array, such as a decoded video frame.
+        Unlike fromMat, the data is used as is, the same way loadFile uses cv2.imread data.
+        """
+        self.imageData_ = None
+        self.sourceData = imageData
+
+        #  determine if this is a color or mono image
+        if (len(self.sourceData.shape) == 3):
+            self.isColor = True
+        else:
+            self.isColor = False
+
+        #  generate our pixmap of this image
+        self.updateImage()
+
+
     def fromQPixmap(self, pixmap):
         """
         Set the image to the provided QPixmap

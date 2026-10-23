@@ -7,8 +7,9 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from ui import ui_SEBASTES_dockable
-import pyStereoComp, dbConnection
+import pyStereoComp, dbConnection, videoSource
 import numpy as ny
+import cv2
 from math import *
 import traceback
 import glob
@@ -124,6 +125,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.bkpDep=None
         self.bkpDepPath=None
         self.camtrawlMetadataFlag=False
+        self.videoMode=False
+        self.videoSources={}
         
         
         cnt=0
@@ -911,16 +914,23 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.gvRight.setSubsampleRect(rect)
                 self.gvLeft.setSubsampleRect(rect)
 
-            # load in some fetcher properties
-            p=self.settings['FrameNumberIndices'].split('-')
-            self.imgNumInds=[int(p[0]), int(p[1])]
+            # a video ImageFileType means one video per camera folder instead of still images
+            self.videoMode=self.settings.get('ImageFileType', '').strip().lower() in videoSource.VIDEO_TYPES
+            for video in self.videoSources.values():
+                video.release()
+            self.videoSources={}
 
-            if self.settings['ImageTimestampType'].strip()=='in_file_name':
-                self.imgTimestamp=[self.settings['ImageTimestampFormat'].strip(), int(self.settings['ImageTimestampStart'].strip())]
-            elif self.settings['ImageTimestampType'].strip()=='EXIF':
-                self.imgTimestamp=['exif',0]
-            else:
-                self.imgTimestamp=['NoTimestamp',0]
+            # load in some fetcher properties
+            if not self.videoMode:
+                p=self.settings['FrameNumberIndices'].split('-')
+                self.imgNumInds=[int(p[0]), int(p[1])]
+
+                if self.settings['ImageTimestampType'].strip()=='in_file_name':
+                    self.imgTimestamp=[self.settings['ImageTimestampFormat'].strip(), int(self.settings['ImageTimestampStart'].strip())]
+                elif self.settings['ImageTimestampType'].strip()=='EXIF':
+                    self.imgTimestamp=['exif',0]
+                else:
+                    self.imgTimestamp=['NoTimestamp',0]
 
             # get image names
             self.LPath=self.deploymentPath + '/' + self.settings['LeftCameraImagePath']+ '/'
@@ -951,12 +961,16 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 obj.removeScene()
                 obj.createScene()
             self.leftImageDict=self.getImageFiles(self.LPath,  self.leftPB)
+            if self.leftImageDict is None:
+                return False
             keys=list(self.leftImageDict.keys())
             keys.sort()
             self.leftImageFrames=keys
             self.statusBar.removeWidget(self.leftPB)
             self.leftPB = None
             self.rightImageDict=self.getImageFiles(self.RPath,  self.rightPB)
+            if self.rightImageDict is None:
+                return False
             keys=list(self.rightImageDict.keys())
             keys.sort()
             self.rightImageFrames=keys
@@ -1044,7 +1058,27 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     pass
 
 
+    def getVideoFrames(self, imPath):
+        '''
+        Video mode counterpart of getImageFiles: opens the one video in imPath and
+        returns the same {frame: [timestamp, file name]} dict, frames numbered from 0.
+        '''
+        type=self.settings['ImageFileType'].strip().lower()
+        videoFiles=[f for f in os.listdir(str(imPath)) if f.lower().endswith('.'+type)]
+        if len(videoFiles)!=1:
+            QMessageBox.warning(self, "ERROR", imPath+" must contain exactly one ."+type+" video, found "+str(len(videoFiles))+".")
+            return None
+        try:
+            video=videoSource.videoSource(os.path.join(str(imPath), videoFiles[0]))
+        except:
+            self.showError()
+            return None
+        self.videoSources[imPath]=video
+        return {frame:[video.frameTime(frame), videoFiles[0]] for frame in range(video.frameCount)}
+
     def getImageFiles(self,  imPath,  progressbar):
+        if self.videoMode:
+            return self.getVideoFrames(imPath)
         try:
             #  check if the cached directory structure exists
             # left images
@@ -1250,7 +1284,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.dtString = imTime.strftime('%Y-%m-%d %H:%M:%S.%f')
             else:
                 self.dtString = ''
-            gvObj.setImageFromFile(imgFileLoc)
+            if self.videoMode:
+                image=self.videoSources[imPath].getFrame(currentFrame)
+                if image is None:
+                    return
+                gvObj.setImageFromCvImage(image)
+            else:
+                gvObj.setImageFromFile(imgFileLoc)
             gvObj.resetView()
             gvObj.fillExtent()
             self.activeMark[gvObj]==None
@@ -2687,14 +2727,21 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def copyImg(self):
         dirDlg = QFileDialog(self)
-        self.deploymentPath = dirDlg.getExistingDirectory(self, 'Select Copy Location', self.__copyImageDir,
+        copyDir = dirDlg.getExistingDirectory(self, 'Select Copy Location', self.__copyImageDir,
                                               QFileDialog.Option.ShowDirsOnly)
-        if self.deploymentPath !='':
-            self.__copyImageDir=self.deploymentPath
-            f=self.RFile.split('/')
-            QFile(self.RFile).copy(self.deploymentPath+'/'+f[-1])
-            f=self.LFile.split('/')
-            QFile(self.LFile).copy(self.deploymentPath+'/'+f[-1])
+        if copyDir !='':
+            self.__copyImageDir=copyDir
+            if self.videoMode:
+                # no image files to copy - save the current frames instead
+                for gvObj, file in [(self.gvRight, self.RFile), (self.gvLeft, self.LFile)]:
+                    if file:
+                        name=os.path.splitext(os.path.basename(file))[0]+'_frame%06d.png' % int(self.frameBox.text())
+                        cv2.imwrite(copyDir+'/'+name, gvObj.image.sourceData)
+            else:
+                f=self.RFile.split('/')
+                QFile(self.RFile).copy(copyDir+'/'+f[-1])
+                f=self.LFile.split('/')
+                QFile(self.LFile).copy(copyDir+'/'+f[-1])
 
     def changeActiveTarget(self,  target,  frame,  zoom):
         if int(frame)!=self.imageSlider.value():

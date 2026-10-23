@@ -299,6 +299,14 @@ class QImageViewer(QViewerBase):
         self.image.loadFile(filename)
 
 
+    def setImageFromCvImage(self, imageData):
+        """
+        Set the QImageViewer image to an OpenCV (BGR) numpy array, such as a video frame.
+        """
+
+        self.image.fromCvImage(imageData)
+
+
     def setImageFromPixmap(self, pixmap):
         """
         Set the QImageViewer image to the provided QPixmap
