@@ -296,8 +296,11 @@ class QEnhancedImage(QObject):
             if (self.sourceData is None):
                 return
 
-            #  get our source data
-            self.imageData_ = np.copy(self.sourceData)
+            #  get our source data - copied only when the corrections below may change it in place
+            if (self.enableBrightnessContrast or self.enableColorCorrection or self.subsampleIdx):
+                self.imageData_ = np.copy(self.sourceData)
+            else:
+                self.imageData_ = self.sourceData
 
             #  for backward compatibility, set the enhancedData property - we used to
             #  not store this data by default but we do now so just get a reference to it
@@ -339,9 +342,16 @@ class QEnhancedImage(QObject):
             if (self.subsampleIdx):
                 self.imageData_ = self.applySubsamplingRect(self.imageData_)
 
-        #  convert our image data into a QImage - swap the B&R channels so the OpenCV BGR data
-        #  is converted to RGB for display by Qt.
-        qimage = qimage2ndarray.array2qimage(self.imageData_).rgbSwapped()
+        #  convert our image data into a QImage
+        if (self.imageData_.dtype == np.uint8 and self.imageData_.ndim == 3 and self.imageData_.shape[2] == 3):
+            #  8 bit BGR data (video frames, most image files): Qt reads it as is. This is
+            #  several times faster than qimage2ndarray, which matters for video playback.
+            data = np.ascontiguousarray(self.imageData_)
+            qimage = QtGui.QImage(data.data, data.shape[1], data.shape[0], data.strides[0],
+                    QtGui.QImage.Format.Format_BGR888).copy()
+        else:
+            #  swap the B&R channels so the OpenCV BGR data is converted to RGB for display by Qt.
+            qimage = qimage2ndarray.array2qimage(self.imageData_).rgbSwapped()
 
         #  transform the image if needed
         if (not self.transform.isIdentity()):
