@@ -192,10 +192,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.metadataDockWidget.hide()
         self.speciesDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
         self.speciesDockWidget.hide()
-        # Measurements panel, between the right image and the species buttons
+        # species buttons next to the left image, Measurements panel next to the right one
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.speciesDockWidget)
         self.measurementsDock=measurementsdock.MeasurementsDock(self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.measurementsDock)
-        self.splitDockWidget(self.measurementsDock, self.speciesDockWidget, Qt.Orientation.Horizontal)
         self.measurementsDock.goToTarget.connect(self.showMeasurement)
         self.measurementsDock.hide()
         self.toolsDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)

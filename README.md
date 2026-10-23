@@ -201,7 +201,7 @@ SEBASTES then saves the length as the target's line (the measurement chosen in t
 
 The target label is drawn beyond the head and the length label beyond the tail (or above/below them when there is no room), so they don't overlap. They appear when **Show Labels** is ticked. Lengths and names are saved in the `lines` table (`NAME` column, also in `*_lines.csv`); for the units, see Stereo calibration.
 
-The **Measurements** panel, between the right image and the species buttons, lists every measurement of the deployment: name, frame, target, species, measurement, length, distance from the left camera (cm) and error. Drag its edge to resize it. Double-click a name to change it; click a row to go to that frame and select the fish; click a column header to sort.
+The species buttons are next to the left image. The **Measurements** panel, next to the right image, lists every measurement of the deployment: name, frame, target, species, measurement, length, distance from the left camera (cm) and error. Drag its edge to resize it. Double-click a name to change it; click a row to go to that frame and select the fish; click a column header to sort.
 
 Outside Record the marks and measurements of each frame are still shown, read only, with the measurement names in the length labels. Clicking a row of the Measurements panel shows that fish as usual and fades the other fish of the same frame, until you move to another frame.
 
