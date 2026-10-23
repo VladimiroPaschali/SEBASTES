@@ -136,6 +136,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.makeBoxes = False
         self.activeMark = {self.gvLeft:None, self.gvRight:None}
         self.activeLine = {self.gvLeft:None, self.gvRight:None}
+        # guided fish marking: 0 head left, 1 head right, 2 tail left, 3 tail right
+        self.fishStep = 0
+        self.fishTarget = None
+        self.fishHead = None
+        self.fishHeadMarks = None
+        self.fishLines = {}
         self.gridLines = {self.gvLeft:[], self.gvRight:[]}
         self.randomCellLines = {self.gvLeft:[], self.gvRight:[]}
         self.speciesInGrid=set()
@@ -193,7 +199,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.stereoRadio.setChecked(True)# default state - remeber?
         self.monoRadio.clicked.connect(self.cameraViewAction)
         self.stereoRadio.clicked.connect(self.cameraViewAction)
-        
+        # the guided fish marking follows these buttons
+        for btn in [self.recordBtn, self.measureBtn, self.trainBtn, self.stereoRadio]:
+            btn.toggled.connect(self.updateFishGuide)
+
         # grid cehckbox
         self.gridCheck.stateChanged.connect(self.gridBoxAction)
         
@@ -1272,8 +1281,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if self.recordBtn.isChecked():
                 self.deSelect()
                 self.clearMarks()
-                # deal with orphaned stereo pair 
+                # deal with orphaned stereo pair
                 self.pairPoints=[]
+                # and with a fish being marked: the scene is rebuilt, start again from its head
+                self.fishStep=0
+                self.fishLines={}
                 # deal with the grid
                 if not self.gridSetup['PersistentGrid'] and self.gridCheck.isChecked():
                     self.gridCheck.setChecked(False)
@@ -1298,6 +1310,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.reloadData()
                 self.incrementCounters()
             self.currentTarget=0
+            self.updateFishGuide()
             if self.gridSetup['PersistentGrid'] and self.gridCheck.isChecked():
                 self.gridBoxAction()
             if self.camtrawlMetadataFlag:
@@ -1604,7 +1617,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # no key is being held down right now
 
         if (ev.key() == Qt.Key_Shift):
-            if  not self.stereoOnlyCheckBox.isChecked():
+            # in the guided fish marking the pending point waits for the other image (Esc cancels it)
+            if  not self.stereoOnlyCheckBox.isChecked() and not self.fishGuideActive():
                 if len(self.pairPoints)==1: #user lifted shift button  but didn't mean to
                     lZoom=self.gvLeft.zoomLevel
                     rZoom=self.gvRight.zoomLevel
@@ -1736,6 +1750,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     self.linkBtn.setChecked(False)
         else:
             try:
+                if self.fishGuideActive() and imageObj!=self.fishImage():
+                    # the dimmed image waits for its turn
+                    return
                 if self.measureBtn.isChecked():
                     dimLine = imageObj.startDimensionLine(clickLoc, taillength=self.guiSettings['MeasureLineTailLength'],  thickness=self.guiSettings['MeasureLineWidth'], color=self.guiSettings['TargetLineColor'])
                     self.rubberBanding = True
@@ -1769,8 +1786,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             for i in remList:
                                 item.remove(i)
 
-                        if QGuiApplication.queryKeyboardModifiers()==Qt.ShiftModifier or self.stereoOnlyCheckBox.isChecked():
+                        # once a fish is started its other points need no Shift
+                        stereoClick=(QGuiApplication.queryKeyboardModifiers()==Qt.ShiftModifier or self.stereoOnlyCheckBox.isChecked()
+                                     or self.fishStep>0)
+                        if stereoClick:
                             if not self.stereoAvailable():
+                                return
+                            if self.fishStep>=2:
+                                self.addTailPoint(imageObj, clickLoc)
                                 return
                             style='o'
                             col=self.spcColors[self.spcInd]
@@ -1818,7 +1841,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 marker.hideLabels(None)
 
 
-                            if QGuiApplication.queryKeyboardModifiers()==Qt.ShiftModifier  or self.stereoOnlyCheckBox.isChecked():# matched target
+                            if stereoClick:# matched target
                                 if len(self.pairPoints)<1:# have only half of the points for this matched target
                                     if self.computeMatchBox.isChecked():# here we auto fill both points
                                         if imageObj==self.gvLeft:
@@ -1906,6 +1929,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                             self.activeMark[self.gvLeft].hideLabels(None)
                                         if self.showDataCheck.isChecked():
                                             self.datadlg.refreshView()
+                                        self.startFishTail()
                                         return
 
 
@@ -1917,6 +1941,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.activeMark [self.gvLeft]=None
                                     self.activeMark [self.gvLeft]=None
                                     self.theOtherTarget=marker
+                                    if self.fishGuideActive():
+                                        # head in the left image done, now the same point in the right one
+                                        self.fishStep=1
+                                        self.updateFishGuide()
                                 else:# this the second point of the pair
                                     if imageObj==self.gvLeft:
                                         self.activeMark [self.gvLeft]=marker
@@ -1962,6 +1990,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         self.datadlg.refreshView()
                                         ##########
                                     self.pairPoints=[]
+                                    self.startFishTail()
                                         
                             else:# non-matched target
                                 #set active mark for zooming
@@ -2019,6 +2048,162 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 # zoom back if there are any active targets in either frame
         self.incrementCounters()
 
+    def fishGuideActive(self):
+        '''
+        The guided fish marking runs while recording stereo targets with a calibration: the head
+        and then the tail are clicked in the left image and then in the right one, and the
+        length is saved without pressing Measure Target.
+        '''
+        return (self.recordBtn.isChecked() and self.stereoRadio.isChecked() and not self.measureBtn.isChecked()
+                and not self.trainBtn.isChecked() and getattr(self, 'mode', None)=='stereo')
+
+    def fishImage(self):
+        # the image waiting for the next click of the fish being marked
+        if self.fishStep in (1, 3):
+            return self.gvRight
+        return self.gvLeft
+
+    def updateFishGuide(self, *args):
+        '''
+        updateFishGuide dims the image that isn't waiting for a click and says in the status bar
+        what to click next.
+        '''
+        if not self.fishGuideActive():
+            self.fishStep=0
+            self.gvLeft.setDimmed(False)
+            self.gvRight.setDimmed(False)
+            self.statusBar.clearMessage()
+            return
+        self.gvLeft.setDimmed(self.fishImage()!=self.gvLeft)
+        self.gvRight.setDimmed(self.fishImage()!=self.gvRight)
+        messages=['Fish: Shift+click the head in the LEFT image (a plain click only counts the fish).',
+                  'Fish: click the same point of the head in the RIGHT image. Esc cancels.',
+                  'Fish: click the tail in the LEFT image. Esc keeps the fish without a length.',
+                  'Fish: click the same point of the tail in the RIGHT image. Esc keeps the fish without a length.']
+        self.statusBar.showMessage(messages[self.fishStep])
+
+    def startFishTail(self):
+        '''
+        startFishTail is called when the head of a fish has been marked in both images: the tail
+        comes next, left image first.
+        '''
+        if not self.fishGuideActive():
+            return
+        self.fishTarget=self.currentTarget
+        self.fishHead=[QPointF(self.targetPosition[0]), QPointF(self.targetPosition[1])]
+        self.fishHeadMarks=[self.activeMark[self.gvLeft], self.activeMark[self.gvRight]]
+        self.fishLines={}
+        self.fishStep=2
+        self.updateFishGuide()
+
+    def addTailPoint(self, imageObj, clickLoc, auto=False):
+        '''
+        addTailPoint takes the tail of the fish: left image first, then the right one (found by
+        Auto Match when it is ticked). With both, the length is computed and saved.
+        '''
+        tail=QPointF(clickLoc.x(), clickLoc.y())
+        head=self.fishHead[0] if imageObj==self.gvLeft else self.fishHead[1]
+        if QLineF(head, tail).length()<1:
+            QMessageBox.warning(self, "ERROR", "The tail must be away from the head.")
+            return
+        self.fishLines[imageObj]=imageObj.addDimensionLine(head, tail, taillength=self.guiSettings['MeasureLineTailLength'],
+                thickness=self.guiSettings['MeasureLineWidth'], color=self.guiSettings['TargetLineColor'])
+        self.lineMarks.update({self.fishLines[imageObj]:[self.fishTarget, imageObj]})
+        if imageObj==self.gvRight:
+            self.saveFishLength(auto)
+            return
+        self.fishStep=3
+        self.updateFishGuide()
+        if self.computeMatchBox.isChecked():
+            point=ny.array([[tail.x(), tail.y()]])
+            state, point_c, score=self.stereoComp.computeMatch(self.gvLeft.image.enhancedData, self.gvRight.image.enhancedData, point)
+            if state:
+                self.addTailPoint(self.gvRight, QPointF(point_c[0, 0], point_c[0, 1]), auto=True)
+            else:
+                QMessageBox.warning(self, "ERROR", score+". Click the tail in the right image.")
+
+    def saveFishLength(self, auto=False):
+        '''
+        saveFishLength computes the fish length from its head and tail in both images and saves
+        it as a line of the fish's target, like Measure Target does.
+        '''
+        lineL, lineR=self.fishLines[self.gvLeft], self.fishLines[self.gvRight]
+        self.activeLine[self.gvLeft]=lineL
+        self.activeLine[self.gvRight]=lineR
+        self.calculate('line')
+        self.activeLine[self.gvLeft]=None
+        self.activeLine[self.gvRight]=None
+        if auto:
+            try:
+                t=float(self.matchThresholdEdit.text())
+            except:
+                t=None
+            if t and self.targetStereoData[2]>t:
+                # a poor automatic match: let the user click the tail
+                del self.lineMarks[lineR]
+                self.gvRight.removeItem(lineR)
+                del self.fishLines[self.gvRight]
+                QMessageBox.warning(self, "ERROR", "Couldn't find an appropriate match! Click the tail in the right image.")
+                return
+        label=self.measurementBox.currentText()
+        values=[str(v) for v in self.targetStereoData]
+        # one line per measurement type and target
+        self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.fishTarget)+
+            " AND line_label='"+label+"' AND deployment_ID='"+self.deployment+"'")
+        self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
+            "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.fishTarget)+",'"+label+"',"+
+            ",".join(values[3:17])+","+values[0]+","+values[2]+")")
+        lineL.addLabel(self.fishHead[0], label[0:3]+" = "+str(round(self.targetStereoData[0], 2))+" e = "+str(round(self.targetStereoData[2], 2)),
+                color=self.guiSettings['TargetLineColor'], size=self.guiSettings['LabelTextSize'])
+        if not self.labelCheck.isChecked():
+            lineL.hideLabels(None)
+        self.separateLabels(self.fishHeadMarks[0], lineL)
+        self.separateLabels(self.fishHeadMarks[1], lineR)
+        self.currentTarget=self.fishTarget
+        self.fishStep=0
+        self.fishLines={}
+        self.updateFishGuide()
+        self.statusBar.showMessage('Target '+str(self.fishTarget)+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '+
+                self.statusBar.currentMessage())
+        if self.showDataCheck.isChecked():
+            self.datadlg.refreshView()
+
+    def separateLabels(self, mark, line):
+        '''
+        separateLabels keeps a target label and its length label apart: the target label goes on
+        the side of the mark away from the line, the length label past the far end of the line.
+        '''
+        if mark is None or line is None:
+            return
+        markPos=mark.markItem.pos()
+        p1, p2=line.p1(), line.p2()
+        # the line end away from the mark
+        if QLineF(markPos, p1).length()>QLineF(markPos, p2).length():
+            far, near=p1, p2
+        else:
+            far, near=p2, p1
+        farRight=far.x()>=near.x()
+        for label in mark.getLabelsFromName('tnumber'):
+            label.halign='right' if farRight else 'left'
+            label.valign='center'
+            label.offset=QPointF(-8 if farRight else 8, 0)
+        for label in line.labels:
+            label.position=far
+            label.halign='left' if farRight else 'right'
+            label.valign='center'
+            label.offset=QPointF(8 if farRight else -8, 0)
+        for label in mark.getLabelsFromName('tnumber')+line.labels:
+            label.setPos(label.position, 1.0/label.view.transform().m11())
+        if line.view:
+            line.view.viewport().update()
+
+    def separateTargetLabels(self, target):
+        # separateLabels for the target's mark and first line in each image
+        for imageObj in [self.gvLeft, self.gvRight]:
+            mark=next((m for m, info in self.pointMarks.items() if info[0]==target and info[1]==imageObj), None)
+            line=next((l for l, info in self.lineMarks.items() if info[0]==target and info[1]==imageObj), None)
+            self.separateLabels(mark, line)
+
     def imageUnClick(self, imageObj, clickLoc, button, modifier):
 
         if self.rubberBanding:
@@ -2072,7 +2257,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.activeLine[imageObj] = dimLine
             if self.measureBtn.isChecked():
                 if not self.activeLine[self.gvLeft]==None and not self.activeLine[self.gvRight]==None:
-                    col=self.guiSettings['SceneColor']
+                    col=self.guiSettings['TargetLineColor']
                     # stereo triangulation
                     self.calculate('line')
                     # check to see alignment of target and line
@@ -2083,6 +2268,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
                     if not self.labelCheck.isChecked():
                         self.activeLine[self.gvLeft].hideLabels(None)
+                    self.separateTargetLabels(self.currentTarget)
 
                     self.activeLine[self.gvLeft]=None
                     self.activeLine[self.gvRight]=None
@@ -2184,6 +2370,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
                         if not self.labelCheck.isChecked():
                             self.activeLine[self.gvLeft].hideLabels(None)
+                        self.separateTargetLabels(self.currentTarget)
 
                         self.activeLine[self.gvLeft]=None
                         self.activeLine[self.gvRight]=None
@@ -2761,6 +2948,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         lineObjsL.addLabel(QPointF(float(LX1), float(LY1)),line_label[0:3]+" = "+str(round(float(Length), 2))+" e = "+str(round(float(Error), 2)), color=col,  size=self.guiSettings['LabelTextSize'])
                         if not self.labelCheck.isChecked():
                             lineObjsL.hideLabels(None)
+                        self.separateTargetLabels(int(target_number))
                             
 
                         

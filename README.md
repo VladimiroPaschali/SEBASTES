@@ -189,23 +189,23 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
 5. Press **Record** and enter your initials. The button turns red while recording. The species buttons and the measuring tools are enabled while recording; **Measure Target** is shown only while recording in stereo mode, and **Link Target**, **Edit Species** and **Delete Link** only while recording. A selected species button is filled with its color.
 6. **Copy Images to...** saves the current pair. Image files are copied; in video mode the two frames are saved as PNG, for example `GX010123_frame000250.png`.
 
-### Marking fish
+### Marking and measuring fish
 
-While recording, click a species button, then click the fish:
+While recording in stereo mode with a calibration, SEBASTES guides the clicks: the image that is not waiting for a click is dimmed, clicks in it are ignored, and the status bar says what to click next. Click a species button, then:
 
-- **Plain click**: marks the fish in one image only. Use it to count fish. These marks cannot be measured.
-- **Shift + click** (or tick **Stereo Targets Only**): creates a **stereo target**. Click the fish in the left image, then the same point of the fish in the right image. SEBASTES computes its 3D position and range. With **Auto Match** ticked, one click is enough: SEBASTES finds the matching point in the other image.
+1. **Shift + click** the head in the left image (or tick **Stereo Targets Only** and click). The left image dims.
+2. Click the same point of the head in the right image. This creates a **stereo target**: SEBASTES computes its 3D position and range (`r`, cm) and the reprojection error (`e`, px, should be a few pixels at most).
+3. Click the tail in the left image, then the same point of the tail in the right image.
+
+SEBASTES then saves the length as the target's line (the measurement chosen in the list next to **Measure Target**, `length` by default) and is ready for the next fish. Shift is needed only for the first click. With **Auto Match** ticked, the right-image points are found for you: one click on the head and one on the tail. **Esc** cancels the fish being marked; after the head, it keeps the target without a length.
+
+The target label is drawn beyond the head and the length label beyond the tail, so they don't overlap. They appear when **Show Labels** is ticked. Lengths are saved in the `lines` table; for the units, see Stereo calibration.
+
+- **Plain click** in the left image: marks the fish in that image only. Use it to count fish. These marks cannot be measured.
 - **Right-click** a mark to select its target. **Delete** removes the selected target.
+- To measure an existing stereo target again, or another measurement such as `width`, select it, choose the measurement and press **Measure Target**, then drag the line in the left image and in the right image. With **Auto Match** ticked, SEBASTES draws the second line for you.
 
-Stereo targets need a stereo calibration in the profile.
-
-### Measuring fish
-
-1. Create a stereo target, or right-click an existing one to select it.
-2. Choose the measurement in the list next to **Measure Target** (`length`, `width` or `chela_width`) and press **Measure Target**.
-3. Drag a line along the fish in the left image, for example from snout to tail. Then drag the same line in the right image. With **Auto Match** ticked, SEBASTES draws the second line for you.
-
-The length appears next to the line when **Show Labels** is ticked. It is saved in the `lines` table. For the units, see Stereo calibration.
+In mono mode clicks are not guided. Without a calibration they are not guided either, and only plain clicks can be used.
 
 While a deployment is open, SEBASTES keeps a `<user>.lck` file in its `data/` folder and deletes it on exit. The file does not currently stop a second user from opening the same deployment, so avoid annotating it from two computers at once.
 

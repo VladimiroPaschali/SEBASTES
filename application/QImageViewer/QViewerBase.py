@@ -186,6 +186,7 @@ class QViewerBase(QGraphicsView):
         self.hudItems = []
         self.sceneItems = []
         self.stickyScale = (1.0,1.0)
+        self.dimmed = False
 
         #  enable mouse tracking
         self.setMouseTracking(True)
@@ -1536,11 +1537,23 @@ class QViewerBase(QGraphicsView):
         self.hudItems = []
 
 
+    def setDimmed(self, dimmed):
+        """
+        setDimmed darkens (True) or restores (False) the whole view, for example to show
+        that this view isn't the one waiting for the user's click.
+        """
+        if dimmed != self.dimmed:
+            self.dimmed = dimmed
+            self.viewport().update()
+
+
     def drawForeground(self, painter, rect):
         """
         drawForeground is called when drawing the scene and is responsible for
         painting the HUD elements.
         """
+        if self.dimmed:
+            painter.fillRect(rect, QColor(0, 0, 0, 160))
         if self.hudItems:
             hudPainter = QPainter(self.viewport())
             for item in self.hudItems:
