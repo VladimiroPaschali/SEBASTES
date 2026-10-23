@@ -1943,8 +1943,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.dataDB.dbExec("INSERT INTO targets (project, deployment_ID,frame_number, target_number, species_group, annotator, time_stamp)  "+
                                     "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+tClass+"','"+self.annotator+"','"+dt.strftime(self.timestamp_format)+"')")
                                     self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY, X,Y,Z, range, error)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[1])+","+
-                                    str(self.targetStereoData[2])+","+str(self.targetStereoData[3])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
+                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
+                                    str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
                                     self.pairPoints=[]
                                     if len(self.linkData)>0:
                                         self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
