@@ -2170,11 +2170,16 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def separateLabels(self, mark, line):
         '''
-        separateLabels keeps a target label and its length label apart: the target label goes on
-        the side of the mark away from the line, the length label past the far end of the line.
+        separateLabels keeps a target label and its length label apart and inside the view. The
+        target label goes beyond the mark (away from the line), else above or below it; the length
+        label beyond the far end of the line, else below or above its middle. The first pair of
+        places that fits in the view without overlapping is used.
         '''
         if mark is None or line is None:
             return
+        view=line.view
+        markLabels=mark.getLabelsFromName('tnumber')
+        lineLabels=list(line.labels)
         markPos=mark.markItem.pos()
         p1, p2=line.p1(), line.p2()
         # the line end away from the mark
@@ -2182,20 +2187,37 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             far, near=p1, p2
         else:
             far, near=p2, p1
+        middle=(p1+p2)/2
         farRight=far.x()>=near.x()
-        for label in mark.getLabelsFromName('tnumber'):
-            label.halign='right' if farRight else 'left'
-            label.valign='center'
-            label.offset=QPointF(-8 if farRight else 8, 0)
-        for label in line.labels:
-            label.position=far
-            label.halign='left' if farRight else 'right'
-            label.valign='center'
-            label.offset=QPointF(8 if farRight else -8, 0)
-        for label in mark.getLabelsFromName('tnumber')+line.labels:
-            label.setPos(label.position, 1.0/label.view.transform().m11())
-        if line.view:
-            line.view.viewport().update()
+        # (anchor, horizontal and vertical alignment, offset in screen pixels)
+        markPlaces=[(markPos, 'right' if farRight else 'left', 'center', QPointF(-8 if farRight else 8, 0)),
+                    (markPos, 'center', 'bottom', QPointF(0, -10)),
+                    (markPos, 'center', 'top', QPointF(0, 10))]
+        linePlaces=[(far, 'left' if farRight else 'right', 'center', QPointF(8 if farRight else -8, 0)),
+                    (middle, 'center', 'top', QPointF(0, 10)),
+                    (middle, 'center', 'bottom', QPointF(0, -10))]
+        scale=1.0/view.transform().m11()
+        def place(labels, where):
+            for label in labels:
+                label.position, label.halign, label.valign, label.offset=where
+                label.setPos(label.position, scale)
+        def screenRect(label):
+            return label.deviceTransform(view.viewportTransform()).mapRect(label.boundingRect())
+        viewRect=QRectF(view.viewport().rect())
+        for markPlace in markPlaces:
+            for linePlace in linePlaces:
+                place(markLabels, markPlace)
+                place(lineLabels, linePlace)
+                markRects=[screenRect(label) for label in markLabels]
+                lineRects=[screenRect(label) for label in lineLabels]
+                if (all(viewRect.contains(r) for r in markRects+lineRects) and
+                        not any(a.intersects(b) for a in markRects for b in lineRects)):
+                    view.viewport().update()
+                    return
+        # nothing fits the view: keep them apart
+        place(markLabels, markPlaces[0])
+        place(lineLabels, linePlaces[0])
+        view.viewport().update()
 
     def separateTargetLabels(self, target):
         # separateLabels for the target's mark and first line in each image
