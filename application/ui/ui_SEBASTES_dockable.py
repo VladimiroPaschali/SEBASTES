@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDockWidget,
     QFrame, QGridLayout, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QMainWindow, QMenu,
     QMenuBar, QPushButton, QRadioButton, QSizePolicy,
-    QSlider, QSpacerItem, QStatusBar, QTabWidget,
-    QVBoxLayout, QWidget)
+    QSlider, QSpacerItem, QSpinBox, QStatusBar,
+    QTabWidget, QVBoxLayout, QWidget)
 
 from QImageViewer.QImageViewer import QImageViewer
 
@@ -1117,15 +1117,40 @@ class Ui_SEBASTES(object):
 
         self.horizontalLayout_4.addWidget(self.playBtn)
 
+        self.playSpeedLayout = QVBoxLayout()
+        self.playSpeedLayout.setSpacing(0)
+        self.playSpeedLayout.setObjectName(u"playSpeedLayout")
+        self.playSpeedLabel = QLabel(self.dockWidgetContents_8)
+        self.playSpeedLabel.setObjectName(u"playSpeedLabel")
+
+        self.playSpeedLayout.addWidget(self.playSpeedLabel)
+
+        self.playSpeedRowLayout = QHBoxLayout()
+        self.playSpeedRowLayout.setObjectName(u"playSpeedRowLayout")
         self.playSpeedSlider = QSlider(self.dockWidgetContents_8)
         self.playSpeedSlider.setObjectName(u"playSpeedSlider")
         self.playSpeedSlider.setMinimumSize(QSize(51, 0))
+        self.playSpeedSlider.setMaximumSize(QSize(120, 16777215))
         self.playSpeedSlider.setMinimum(1)
         self.playSpeedSlider.setMaximum(100)
         self.playSpeedSlider.setSingleStep(10)
         self.playSpeedSlider.setOrientation(Qt.Horizontal)
 
-        self.horizontalLayout_4.addWidget(self.playSpeedSlider)
+        self.playSpeedRowLayout.addWidget(self.playSpeedSlider)
+
+        self.playSpeedBox = QSpinBox(self.dockWidgetContents_8)
+        self.playSpeedBox.setObjectName(u"playSpeedBox")
+        self.playSpeedBox.setMaximumSize(QSize(104, 16777215))
+        self.playSpeedBox.setMinimum(1)
+        self.playSpeedBox.setMaximum(100)
+
+        self.playSpeedRowLayout.addWidget(self.playSpeedBox)
+
+
+        self.playSpeedLayout.addLayout(self.playSpeedRowLayout)
+
+
+        self.horizontalLayout_4.addLayout(self.playSpeedLayout)
 
 
         self.horizontalLayout_2.addLayout(self.horizontalLayout_4)
@@ -1281,7 +1306,7 @@ class Ui_SEBASTES(object):
 "frame", None))
         self.countInFrameLabel.setText("")
         self.toolsDockWidget.setWindowTitle(QCoreApplication.translate("SEBASTES", u"Tools", None))
-        self.recordBtn.setText(QCoreApplication.translate("SEBASTES", u"Record", None))
+        self.recordBtn.setText(QCoreApplication.translate("SEBASTES", u"\u25cf Record", None))
         self.copyBtn.setText(QCoreApplication.translate("SEBASTES", u"Copy Images to...", None))
         self.recomputeBtn.setText(QCoreApplication.translate("SEBASTES", u"Recompute 3D", None))
         self.trainBtn.setText(QCoreApplication.translate("SEBASTES", u"Create training set", None))
@@ -1308,8 +1333,13 @@ class Ui_SEBASTES(object):
         self.gridCheck.setText(QCoreApplication.translate("SEBASTES", u"Grid Overlay", None))
         self.clearGridBtn.setText(QCoreApplication.translate("SEBASTES", u"Clear Grid Data", None))
         self.playBtn.setText(QCoreApplication.translate("SEBASTES", u"Play", None))
+        self.playSpeedLabel.setText(QCoreApplication.translate("SEBASTES", u"Playback speed", None))
 #if QT_CONFIG(tooltip)
         self.playSpeedSlider.setToolTip(QCoreApplication.translate("SEBASTES", u"Playback speed (frames per second)", None))
 #endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.playSpeedBox.setToolTip(QCoreApplication.translate("SEBASTES", u"Playback speed (frames per second). Type a value to move the slider.", None))
+#endif // QT_CONFIG(tooltip)
+        self.playSpeedBox.setSuffix(QCoreApplication.translate("SEBASTES", u" fps", None))
     # retranslateUi
 

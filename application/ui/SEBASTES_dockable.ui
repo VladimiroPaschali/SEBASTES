@@ -1720,7 +1720,7 @@ frame</string>
           </font>
          </property>
          <property name="text">
-          <string>Record</string>
+          <string>● Record</string>
          </property>
          <property name="checkable">
           <bool>true</bool>
@@ -2121,29 +2121,75 @@ frame</string>
           </widget>
          </item>
          <item>
-          <widget class="QSlider" name="playSpeedSlider">
-           <property name="minimumSize">
-            <size>
-             <width>51</width>
-             <height>0</height>
-            </size>
+          <layout class="QVBoxLayout" name="playSpeedLayout">
+           <property name="spacing">
+            <number>0</number>
            </property>
-           <property name="toolTip">
-            <string>Playback speed (frames per second)</string>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>100</number>
-           </property>
-           <property name="singleStep">
-            <number>10</number>
-           </property>
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-          </widget>
+           <item>
+            <widget class="QLabel" name="playSpeedLabel">
+             <property name="text">
+              <string>Playback speed</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="playSpeedRowLayout">
+             <item>
+              <widget class="QSlider" name="playSpeedSlider">
+               <property name="minimumSize">
+                <size>
+                 <width>51</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>120</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Playback speed (frames per second)</string>
+               </property>
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+               <property name="singleStep">
+                <number>10</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="playSpeedBox">
+               <property name="maximumSize">
+                <size>
+                 <width>104</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Playback speed (frames per second). Type a value to move the slider.</string>
+               </property>
+               <property name="suffix">
+                <string> fps</string>
+               </property>
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
          </item>
         </layout>
        </item>

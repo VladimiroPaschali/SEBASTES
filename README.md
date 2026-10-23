@@ -185,8 +185,8 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
    - **Right / Left arrow**: move by the number of frames set in **Sample Interval**.
    - **Ctrl + Right / Left**: move one frame.
    - You can also use the slider, or type a frame number in the frame box.
-   - **Play** runs through the frames at the speed of the slider next to it, in frames per second. For videos it starts at the video's own frame rate. Play is disabled while recording.
-5. Press **Record** and enter your initials. The species buttons and the measuring tools are enabled while recording.
+   - **Play** runs through the frames and turns into a red **Pause** button. The speed is set in frames per second with the **Playback speed** slider, or by typing a value in the fps box next to it. For videos it starts at the video's own frame rate. When the computer can't draw every frame at the chosen speed, frames are skipped so the video still plays at that speed. Playback stops at the last frame, and Play is disabled while recording.
+5. Press **Record** and enter your initials. The button turns red while recording. The species buttons and the measuring tools are enabled while recording; **Measure Target** is shown only while recording in stereo mode, and **Link Target**, **Edit Species** and **Delete Link** only while recording. A selected species button is filled with its color.
 6. **Copy Images to...** saves the current pair. Image files are copied; in video mode the two frames are saved as PNG, for example `GX010123_frame000250.png`.
 
 ### Marking fish

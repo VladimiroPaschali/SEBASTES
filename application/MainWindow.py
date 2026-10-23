@@ -64,13 +64,19 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.selThickness=4
         self.textOffset = QPointF(-4,-4)
         
-        #  color palettes
-        self.red=QPalette()
-        self.red.setColor(QPalette.ColorRole.ButtonText,QColor(255, 0, 0))
-        self.black=QPalette()
-        self.black.setColor(QPalette.ColorRole.ButtonText,QColor(0, 0, 0))
-        self.green=QPalette()
-        self.green.setColor(QPalette.ColorRole.ButtonText,QColor(77,223,77))
+        #  button colors: the checked state shows recording / playing
+        self.recordBtn.setStyleSheet("""
+            QPushButton { color: #d32f2f; font-weight: bold; padding: 4px 10px;
+                          background-color: #ffffff; border: 2px solid #d32f2f; border-radius: 4px; }
+            QPushButton:checked { color: white; background-color: #d32f2f; }
+            QPushButton:disabled { color: #a0a0a0; border-color: #c8c8c8; background-color: #f0f0f0; }
+        """)
+        self.playBtn.setStyleSheet("""
+            QPushButton { color: white; font-weight: bold; padding: 4px 10px;
+                          background-color: #2e7d32; border: none; border-radius: 4px; }
+            QPushButton:checked { background-color: #d32f2f; }
+            QPushButton:disabled { color: #a0a0a0; background-color: #e0e0e0; }
+        """)
 
         # dont mess with this code
         self.spcButtons=[self.btn1, self.btn2, self.btn3, self.btn4, self.btn5, self.btn6, self.btn7, self.btn8, self.btn9, self.btn10,
@@ -92,6 +98,21 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             self.computeMatchBox, self.matchThresholdEdit, self.stereoOnlyCheckBox, self.showDataCheck, self.editSpeciesBtn, self.gridCheck,  self.clearGridBtn,  self.delLinkBtn, self.lastFrameBtn]
         self.bboxEnableWidgets=[self.recomputeBtn,self.measureBtn, self.linkBtn, 
                             self.computeMatchBox, self.matchThresholdEdit, self.stereoOnlyCheckBox, self.showDataCheck]
+        # Measure Target and its measurement list are hidden while Measure Target is disabled.
+        # They keep their space so the other tools don't move.
+        self.measureWidgets=[self.measureBtn, self.label_8, self.measurementBox]
+        for widget in self.measureWidgets:
+            policy=widget.sizePolicy()
+            policy.setRetainSizeWhenHidden(True)
+            widget.setSizePolicy(policy)
+        self.measureBtn.installEventFilter(self)
+        # the target link and species tools only work while recording, so they are shown only then
+        self.recordOnlyWidgets=[self.linkBtn, self.editSpeciesBtn, self.label_4, self.targetLinkLabel, self.delLinkBtn]
+        for widget in self.recordOnlyWidgets:
+            policy=widget.sizePolicy()
+            policy.setRetainSizeWhenHidden(True)
+            widget.setSizePolicy(policy)
+            widget.hide()
 
         self.playBtn.setEnabled(False)
         #  set the base directory path - this is the full path to this application
@@ -188,6 +209,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.actionviewApplicationDB.triggered.connect(self.viewApplicationDB)
         self.actionedit_DB_tables.triggered.connect(self.directEditDBTables)
         self.playSpeedSlider.valueChanged.connect(self.speedSet)
+        # the fps box and the slider follow each other
+        self.playSpeedSlider.valueChanged.connect(self.playSpeedBox.setValue)
+        self.playSpeedBox.valueChanged.connect(self.playSpeedSlider.setValue)
         self.imageSlider.valueChanged.connect( self.__changeImage)
         
 
@@ -310,17 +334,21 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         self.playTimer = QTimer(self)
         self.playTimer.timeout.connect(self.moveSlider)
+        self.playClock=QElapsedTimer()
+        self.playLastIndex=None
         self.speedSet()
 
     ######################1. SETUP FUNCTIONS################################
     
     def cameraViewAction(self):
+        # in stereo, Measure Target is usable only while recording and not making bounding boxes
+        measureOn=self.recordBtn.isChecked() and not self.trainBtn.isChecked()
         if self.stereoRadio.isChecked():
             # restore stereo state
             self.frameLeft.show()
             self.frameRight.show()
-            self.measureBtn.setEnabled(True)
-            self.measurementBox.setEnabled(True)
+            self.measureBtn.setEnabled(measureOn)
+            self.measurementBox.setEnabled(measureOn)
             self.activeGV='Both'
         else: # we are going mono
             if not self.defaultMonoCamera:
@@ -339,8 +367,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     # restore stereo state
                     self.frameLeft.show()
                     self.frameRight.show()
-                    self.measureBtn.setEnabled(True)
-                    self.measurementBox.setEnabled(True)
+                    self.measureBtn.setEnabled(measureOn)
+                    self.measurementBox.setEnabled(measureOn)
                     self.stereoRadio.setChecked(True)
     
     def getGuiSettings(self):
@@ -417,23 +445,25 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     else:
                         txt_color="black"
                     #btn.setStyleSheet("QPushButton { background-color: rgb("+rgb+")}")
+                    # not selected: outline in the species color; selected: filled with it.
+                    # rgb() must stay the first number in the style sheet: imageClick reads the mark color from it
                     btn.setStyleSheet(f"""
                     QPushButton {{
-                        background-color: rgb({rgb});
-                        color: {txt_color};
-                        padding: 8px 16px;
+                        border-color: rgb({rgb});
+                        border-style: solid;
+                        border-width: 3px;
                         border-radius: 4px;
-                        /* Default outline */
-                        border: 2px solid transparent;
+                        background-color: transparent;
+                        padding: 8px 16px;
                         font-weight: normal;
                     }}
-                    QPushButton:checked {{
-                        /* Changed outline on checked state */
-                        border: 4px solid #050505; /* Distinct highlight color */
-                        font-weight: bold;           /* Optional: bold text on check */
-                    }}
                     QPushButton:hover {{
-                        border-color: #FFFFFF; /* Highlight outline on hover */
+                        background-color: rgba({rgb}, 70);
+                    }}
+                    QPushButton:checked {{
+                        background-color: rgb({rgb});
+                        color: {txt_color};
+                        font-weight: bold;
                     }}
                 """)
                 cnt+=1
@@ -1360,19 +1390,51 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.mousebits=[imageObj, location, modifier]
 
     def speedSet(self):
-        speed=float(self.playSpeedSlider.value())*(float(self.guiSettings['PlaybackSpeedAdjust']))
-        self.playTimer.setInterval(int(1./speed*1000))
+        self.playSpeed=float(self.playSpeedSlider.value())*(float(self.guiSettings['PlaybackSpeedAdjust']))
+        self.playTimer.setInterval(int(1./self.playSpeed*1000))
+        # restart the playback clock at the new speed
+        self.playStartIndex=None
 
     def play(self):
         if self.playBtn.isChecked():
-            self.playBtn.setPalette(self.green)
+            self.playBtn.setText('Pause')
+            self.playStartIndex=None
             self.playTimer.start()
         else:
-            self.playBtn.setPalette(self.black)
+            self.playBtn.setText('Play')
             self.playTimer.stop()
 
+    def stopPlay(self):
+        if self.playBtn.isChecked():
+            self.playBtn.setChecked(False)
+            self.play()
+
     def moveSlider(self):
-        self.imageSlider.setValue(self.imageSlider.value()+1)
+        '''
+        moveSlider shows the frame the playback clock has reached. When drawing the two images
+        takes longer than the frame interval, the frames in between are skipped and the video
+        still plays at the chosen speed.
+        '''
+        frameIndex=self.imageSlider.value()
+        if frameIndex>=self.imageSlider.maximum():
+            # end of the deployment
+            self.stopPlay()
+            return
+        if self.playStartIndex is None or frameIndex!=self.playLastIndex:
+            # start, new speed, or the slider was moved by hand: count from the current frame
+            self.playStartIndex=frameIndex
+            self.playClock.start()
+        targetIndex=self.playStartIndex+int(self.playClock.elapsed()/1000.*self.playSpeed)+1
+        if targetIndex<=frameIndex:
+            return
+        if targetIndex-frameIndex>videoSource.MAX_GRAB:
+            # this computer can't keep up: a longer jump would be a slow seek in the video,
+            # so go on from here instead of falling further behind the clock
+            targetIndex=frameIndex+videoSource.MAX_GRAB
+            self.playStartIndex=None
+        targetIndex=min(targetIndex, self.imageSlider.maximum())
+        self.playLastIndex=targetIndex
+        self.imageSlider.setValue(targetIndex)
 
 #####################4. UI FUNCTIONS########################################
 
@@ -1415,6 +1477,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             return True
         else:
             return QMainWindow.event(self, event)
+
+    def eventFilter(self, obj, event):
+        # show Measure Target only while it is enabled
+        if obj==self.measureBtn and event.type()==QEvent.EnabledChange:
+            for widget in self.measureWidgets:
+                widget.setVisible(self.measureBtn.isEnabled())
+        return QMainWindow.eventFilter(self, obj, event)
 
     def __keyPressEvent(self, ivObj, ev):
         if self.noLoad:
@@ -2303,7 +2372,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.recordBtn.setChecked(False)
             return
         if self.recordBtn.isChecked():
-            self.recordBtn.setPalette(self.red)
+            self.stopPlay()
             self.imageSlider.setEnabled(False)
             self.playBtn.setEnabled(False)
             self.speciesDockWidget.show()
@@ -2320,6 +2389,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if widget in [self.measureBtn,  self.measurementBox] and self.monoRadio.isChecked(): # dont enable widgets for mono mode
                     continue
                 widget.setEnabled(True)
+            for widget in self.recordOnlyWidgets:
+                widget.show()
 
                 
 
@@ -2333,7 +2404,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             for btn in self.spcButtons:
                 btn.setChecked(False)
             #self.groupBoxView.hide()
-            self.recordBtn.setPalette(self.black)
             self.deSelect()
             self.clearMarks()
 
@@ -2344,6 +2414,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 
             for widget in self.recordEnableWidgets:
                 widget.setEnabled(False)
+            for widget in self.recordOnlyWidgets:
+                widget.hide()
         self.resizeEvent(None)
 
 
@@ -2360,6 +2432,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # we want to go back to normal operations
             self.makeBoxes=False
             for widget in self.bboxEnableWidgets:
+                if widget==self.measureBtn and self.monoRadio.isChecked(): # no measurements in mono mode
+                    continue
                 widget.setEnabled(True)
             self.__changeImage()
 
