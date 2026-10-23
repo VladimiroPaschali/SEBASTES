@@ -1121,7 +1121,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         sql_script=file.read()
         statements=sql_script.split(';')
         for statement in statements:
-            if statement !='':
+            if statement.strip() !='':
                 statement=statement.replace('\t', ' ')
                 statement=statement.replace('\n', '')
                 try:
