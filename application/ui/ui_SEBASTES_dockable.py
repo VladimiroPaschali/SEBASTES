@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'SEBASTES_dockable.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -31,7 +31,6 @@ class Ui_SEBASTES(object):
             SEBASTES.setObjectName(u"SEBASTES")
         SEBASTES.resize(1962, 905)
         SEBASTES.setMinimumSize(QSize(0, 0))
-        SEBASTES.setMaximumSize(QSize(9999, 9999))
         font = QFont()
         font.setPointSize(10)
         SEBASTES.setFont(font)
