@@ -15,6 +15,7 @@ import traceback
 import glob
 import re
 import random
+import sqlite3
 from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg
 from exif import Image
@@ -279,6 +280,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         
 
 
+        # first run: create the db folder files from the templates in schema/
+        self.createMissingDBFiles()
         # open and load up prfile db
         if not QFile('../db/Application.db').exists():
             QMessageBox.warning(self, "ERROR", 'The "Application.db" file is not in its expected location (SEBASTES/db folder).  Something is not right with the file setup.')
@@ -617,6 +620,27 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.showError()
             return False
 
+
+    def createMissingDBFiles(self):
+        '''
+        On a first run there is no SEBASTES/db folder: create an empty Application.db and
+        copy the data db template from the schema folder. Existing files are left alone.
+        '''
+        schemaDir=self.baseDir+'/schema/'
+        try:
+            QDir().mkpath('../db')
+            if not QFile('../db/Project.db.sql').exists():
+                QFile.copy(schemaDir+'Project.db.sql', '../db/Project.db.sql')
+            if not QFile('../db/Application.db').exists():
+                with open(schemaDir+'Application.db.sql') as f:
+                    script=f.read()
+                conn=sqlite3.connect('../db/Application.db')
+                conn.executescript(script)
+                conn.close()
+                QMessageBox.information(self, "NOTE", 'Created an empty "Application.db" in the SEBASTES/db folder.\n\n'+
+                    'Before loading a deployment, use File > Setup Profiles, Species, Etc to create a species collection and a profile.')
+        except:
+            self.showError()
 
     def showError(self):
         t=traceback.format_exception(*sys.exc_info())
@@ -3272,6 +3296,10 @@ class textBoxFilter(QObject):
 
 
 if __name__ == "__main__":
+
+    #  paths like ../db and ../calibrations are relative to the application folder
+    if not getattr(sys, 'frozen', False):
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     app = QApplication(sys.argv)
     form = SEBASTES()

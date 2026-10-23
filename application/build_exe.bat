@@ -4,6 +4,8 @@ rem pyinstaller --windowed --icon=resources\fish.ico --version-file=version.txt 
 pyinstaller SEBASTES.spec
 md .\dist\application\resources
 xcopy /E resources .\dist\application\resources
+md .\dist\application\schema
+xcopy /E schema .\dist\application\schema
 rem md .\dist\SEBASTES\configuration
 rem xcopy /E configuration .\dist\SEBASTES\configuration
 rem md .\dist\SEBASTES\manual
