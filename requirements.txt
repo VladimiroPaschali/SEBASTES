@@ -1,0 +1,9 @@
+PySide6
+numpy
+scipy
+# headless: the regular opencv-python bundles its own Qt, which can stop PySide6 from starting on Linux
+opencv-python-headless
+qimage2ndarray
+exif
+pandas
+PyYAML
