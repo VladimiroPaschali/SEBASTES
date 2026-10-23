@@ -1003,6 +1003,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.rightImageFrames=keys
             self.statusBar.removeWidget(self.rightPB)
             self.rightPB = None
+            if self.videoMode:
+                # the play speed slider is in frames per second: play videos at their own frame rate
+                fps=self.videoSources[self.LPath].fps
+                if fps:
+                    self.playSpeedSlider.setValue(int(round(fps)))
 
             self.noLoad=False
             self.datadlg=dataviewdlg.DataViewDlg(self)

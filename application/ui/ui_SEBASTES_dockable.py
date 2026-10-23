@@ -1308,5 +1308,8 @@ class Ui_SEBASTES(object):
         self.gridCheck.setText(QCoreApplication.translate("SEBASTES", u"Grid Overlay", None))
         self.clearGridBtn.setText(QCoreApplication.translate("SEBASTES", u"Clear Grid Data", None))
         self.playBtn.setText(QCoreApplication.translate("SEBASTES", u"Play", None))
+#if QT_CONFIG(tooltip)
+        self.playSpeedSlider.setToolTip(QCoreApplication.translate("SEBASTES", u"Playback speed (frames per second)", None))
+#endif // QT_CONFIG(tooltip)
     # retranslateUi
 
