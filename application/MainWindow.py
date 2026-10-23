@@ -15,10 +15,13 @@ import traceback
 import glob
 import re
 import random
-import distutils.util
 from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg
 from exif import Image
+
+def strtobool(val):
+    # replaces distutils.util.strtobool - distutils was removed in Python 3.12
+    return str(val).lower() in ('y', 'yes', 't', 'true', 'on', '1')
 
 class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
@@ -259,9 +262,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.gridSetup.update({'MeasureLineTailLength':int(self.appSettings.value('MeasureLineTailLength', 40))})
         self.gridSetup.update({'GridLineColor':self.rgbStr2Lists(self.appSettings.value('GridLineColor', '255,255,0'))})
         self.gridSetup.update({'CellLineColor':self.rgbStr2Lists(self.appSettings.value('CellLineColor', '255,0,0'))})
-        self.gridSetup.update({'RandomizeCell':bool(distutils.util.strtobool(self.appSettings.value('RandomizeCell', 'True')))})
-        self.gridSetup.update({'PersistentGrid':bool(distutils.util.strtobool(self.appSettings.value('PersistentGrid', 'False')))})
-        self.gridSetup.update({'CellBoundary':bool(distutils.util.strtobool(self.appSettings.value('CellBoundary', 'False')))})
+        self.gridSetup.update({'RandomizeCell':strtobool(self.appSettings.value('RandomizeCell', 'True'))})
+        self.gridSetup.update({'PersistentGrid':strtobool(self.appSettings.value('PersistentGrid', 'False'))})
+        self.gridSetup.update({'CellBoundary':strtobool(self.appSettings.value('CellBoundary', 'False'))})
         self.gridSetup.update({'GridSize':self.appSettings.value('GridSize', '2x2')})
         self.gridSetup.update({'GridLineStyle':self.appSettings.value('GridLineStyle','_')})
         
