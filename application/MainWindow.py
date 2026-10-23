@@ -990,7 +990,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # load in stereo calibration
 
             
-            if 'CalibrationFileName' in self.settings:
+            # the profile dialog saves an empty CalibrationFileName when there is no calibration
+            if self.settings.get('CalibrationFileName', '').strip():
                 self.mode='stereo'
                 filename=str(self.settings['CalibrationFileName'])
                 filename=filename.strip()
