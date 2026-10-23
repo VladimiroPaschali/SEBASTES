@@ -1701,6 +1701,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 item.remove(i)
 
                         if QGuiApplication.queryKeyboardModifiers()==Qt.ShiftModifier or self.stereoOnlyCheckBox.isChecked():
+                            if not self.stereoAvailable():
+                                return
                             style='o'
                             col=self.spcColors[self.spcInd]
                             if len(self.pairPoints)>0:
@@ -2361,14 +2363,31 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 widget.setEnabled(True)
             self.__changeImage()
 
+    def stereoAvailable(self):
+        '''
+        stereoAvailable returns True if a stereo calibration is loaded. Otherwise it explains
+        why 3D measurements are not possible and returns False.
+        '''
+        if getattr(self, 'mode', None)=='stereo':
+            return True
+        QMessageBox.warning(self, "ERROR", "3D measurements need a stereo calibration, but the profile of this deployment has no CalibrationFileName.\n\n"+
+            "Put the calibration file in the SEBASTES/calibrations folder, set CalibrationFileName in the profile (File > Setup Profiles, Species, Etc) "+
+            "and load the deployment again.")
+        return False
+
     def toggleMeasure(self):
         if self.measureBtn.isChecked():
+            if not self.stereoAvailable():
+                self.measureBtn.setChecked(False)
+                return
             if self.currentTarget==0:
                 QMessageBox.warning(self, "ERROR", "You need to select a target first!")
                 self.measureBtn.setChecked(False)
                 return
             if not self.pairedTarget:
-                QMessageBox.warning(self, "ERROR", "Currently active target is not a stereo target!")
+                QMessageBox.warning(self, "ERROR", "The selected target is marked in one image only, so it can't be measured.\n\n"+
+                    "To create a stereo target, hold Shift (or tick Stereo Targets Only) and click the fish in the left image, then in the right image. "+
+                    "Then press Measure Target and draw the length in both images.")
                 self.measureBtn.setChecked(False)
                 return
                     # find line marks
@@ -2861,6 +2880,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.targetStereoData=[length, Range, error,  LHX, LHY,LTX,LTY, RHX, RHY,RTX,RTY,lhx, lhy, lhz,ltx,lty, ltz]
 
     def recompute3D(self):
+        if not self.stereoAvailable():
+            return
         # points
         sql=("SELECT deployment_id, frame_number, target_number, point_label, LX, LY, RX, RY FROM points WHERE range is not NULL") #LHX, LHY, LTX, LTY,  RHX, RHY, RTX, RTY
         try:
