@@ -3187,6 +3187,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         sql=("SELECT deployment_id, frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2 FROM lines") #LHX, LHY, LTX, LTY,  RHX, RHY, RTX, RTY
         try:
             from QImageViewer import QIVDimensionLine
+            query = self.dataDB.dbQuery(sql)
             for deployment, frame_number, target_number,line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2 in query:
                 dimLine = QIVDimensionLine.QIVDimensionLine(startPoint=QPointF(float(LX1), float(LY1)), endPoint=QPointF(float(LX2), float(LY2)), color=self.guiSettings['TargetLineColor'],
                                     thickness=self.guiSettings['MeasureLineWidth'], alpha=255, linestyle='-',
