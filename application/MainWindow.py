@@ -1062,9 +1062,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             totalFrames = len(os.listdir(str(imPath) ))
             i=1
             goodtimestamp=True
-            for file in glob.glob(str(imPath) + '/*.'+type):
-                
-                imageFile=file.split('\\')[-1]
+            # match the extension case-insensitively (Linux glob is case-sensitive)
+            imageFiles=[f for f in os.listdir(str(imPath)) if f.lower().endswith('.'+type.lower())]
+            for imageFile in imageFiles:
+                file=os.path.join(str(imPath), imageFile)
                 imageFrame=int(imageFile[max([(self.imgNumInds[0]-1), 0]):self.imgNumInds[1]])
                 if self.settings['ImageTimestampType'].lower()=='in_file_name':
                     try:
