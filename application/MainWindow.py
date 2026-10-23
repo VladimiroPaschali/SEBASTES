@@ -24,6 +24,27 @@ def strtobool(val):
     # replaces distutils.util.strtobool - distutils was removed in Python 3.12
     return str(val).lower() in ('y', 'yes', 't', 'true', 'on', '1')
 
+class HorizontalScrollArea(QScrollArea):
+    def updateContentHeight(self):
+        content = self.widget()
+        if content is None:
+            return
+        minimum = content.minimumSizeHint()
+        height = minimum.height() + 8
+        if minimum.width() > self.viewport().width():
+            height += self.horizontalScrollBar().sizeHint().height()
+        if self.height() != height:
+            self.setFixedHeight(height)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.updateContentHeight()
+
+    def eventFilter(self, obj, event):
+        if obj is self.widget() and event.type() == QEvent.Type.LayoutRequest:
+            self.updateContentHeight()
+        return super().eventFilter(obj, event)
+
 class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def __init__(self, parent=None):
@@ -351,6 +372,48 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playClock=QElapsedTimer()
         self.playLastIndex=None
         self.speedSet()
+
+        # Keep tools in three compact rows, leaving more height for the images.
+        measurementRow = QHBoxLayout()
+        split = self.horizontalLayout_3.indexOf(self.measureBtn)
+        while self.horizontalLayout_3.count() > split:
+            measurementRow.addItem(self.horizontalLayout_3.takeAt(split))
+        self.verticalLayout_4.insertLayout(1, measurementRow)
+        while self.horizontalLayout_2.itemAt(0).widget() is not self.metadataCheckBox:
+            self.horizontalLayout_3.addItem(self.horizontalLayout_2.takeAt(0))
+        self.verticalLayout_4.setContentsMargins(4, 2, 4, 2)
+        self.verticalLayout_4.setSpacing(3)
+        self.horizontalLayout_20.setContentsMargins(4, 0, 4, 0)
+        for row in [self.horizontalLayout_3, measurementRow, self.horizontalLayout_2]:
+            row.setSpacing(4)
+        self.playBtn.setFixedWidth(60)
+        self.playBtn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.playSpeedLabel.setText('Speed')
+        self.playSpeedLabel.setToolTip('Playback speed (frames per second)')
+        self.playSpeedRowLayout.insertWidget(0, self.playSpeedLabel)
+
+        # On smaller screens, scrolling remains available instead of cropping controls.
+        self.toolsScrollArea = self.horizontalScrollArea(self.dockWidgetContents_8)
+        self.toolsDockWidget.setWidget(self.toolsScrollArea)
+        self.headerScrollArea = HorizontalScrollArea(self.centralwidget)
+        self.verticalLayout.replaceWidget(self.upperFrame, self.headerScrollArea)
+        self.horizontalScrollArea(self.upperFrame, self.headerScrollArea)
+
+    def horizontalScrollArea(self, content, area=None):
+        if area is None:
+            area = HorizontalScrollArea(self)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        area.setWidgetResizable(True)
+        area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        area.setWidget(content)
+        content.ensurePolished()
+        content.layout().activate()
+        # Reserve scrollbar height only when the content actually needs scrolling.
+        content.installEventFilter(area)
+        area.updateContentHeight()
+        area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        return area
 
     ######################1. SETUP FUNCTIONS################################
     
