@@ -172,7 +172,9 @@ SEBASTES does not compute calibrations. Make one with another tool and put the f
 - `.npz`: OpenCV parameters saved with NumPy, with the arrays `cameraMatrixL`, `distCoeffsL`, `cameraMatrixR`, `distCoeffsR`, `R`, `T` and optionally `F`.
 - `.yml`: a YAML export with `Camera1`/`Camera2` intrinsic and extrinsic parameters, including SeaGIS calibrations.
 
-3D coordinates, ranges and lengths are expressed in the units of the calibration's translation vector `T`. If `CalibrationFileName` is empty, SEBASTES works without 3D measurements.
+SEBASTES divides 3D coordinates, ranges and lengths by 10 after triangulation. With a calibration in millimetres (the usual case, with `T` in mm), results are therefore in **centimetres**.
+
+If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you can still mark and count fish, but not measure them.
 
 ## Annotating
 
@@ -182,11 +184,28 @@ SEBASTES does not compute calibrations. Make one with another tool and put the f
 4. Move through the frames:
    - **Right / Left arrow**: move by the number of frames set in **Sample Interval**.
    - **Ctrl + Right / Left**: move one frame.
-   - The slider, the frame number box and **Play** also work.
+   - You can also use the slider, or type a frame number in the frame box.
+   - **Play** runs through the frames at the speed of the slider next to it, in frames per second. For videos it starts at the video's own frame rate. Play is disabled while recording.
 5. Press **Record** and enter your initials. The species buttons and the measuring tools are enabled while recording.
 6. **Copy Images to...** saves the current pair. Image files are copied; in video mode the two frames are saved as PNG, for example `GX010123_frame000250.png`.
 
-The marking and measuring tools are described in the NOAA manual.
+### Marking fish
+
+While recording, click a species button, then click the fish:
+
+- **Plain click**: marks the fish in one image only. Use it to count fish. These marks cannot be measured.
+- **Shift + click** (or tick **Stereo Targets Only**): creates a **stereo target**. Click the fish in the left image, then the same point of the fish in the right image. SEBASTES computes its 3D position and range. With **Auto Match** ticked, one click is enough: SEBASTES finds the matching point in the other image.
+- **Right-click** a mark to select its target. **Delete** removes the selected target.
+
+Stereo targets need a stereo calibration in the profile.
+
+### Measuring fish
+
+1. Create a stereo target, or right-click an existing one to select it.
+2. Choose the measurement in the list next to **Measure Target** (`length`, `width` or `chela_width`) and press **Measure Target**.
+3. Drag a line along the fish in the left image, for example from snout to tail. Then drag the same line in the right image. With **Auto Match** ticked, SEBASTES draws the second line for you.
+
+The length appears next to the line when **Show Labels** is ticked. It is saved in the `lines` table. For the units, see Stereo calibration.
 
 While a deployment is open, SEBASTES keeps a `<user>.lck` file in its `data/` folder and deletes it on exit. The file does not currently stop a second user from opening the same deployment, so avoid annotating it from two computers at once.
 
