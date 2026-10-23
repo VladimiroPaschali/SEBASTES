@@ -10,9 +10,9 @@ This version adds:
 - **Linux support**: image loading no longer depends on Windows paths.
 - **First-run setup**: SEBASTES creates its configuration database when it is missing, so it starts from a fresh clone.
 
-It has been tested on Ubuntu 24.04 with Python 3.12. The original NOAA version targets Windows.
+It has been tested on Ubuntu 24.04 with Python 3.12. The original NOAA version targets Windows, but the Windows steps below have not yet been tested with this version.
 
-## Installation
+## Installation on Linux
 
 You need Python 3 with `venv` (on Ubuntu/Debian: `sudo apt install python3-venv`).
 
@@ -20,20 +20,61 @@ You need Python 3 with `venv` (on Ubuntu/Debian: `sudo apt install python3-venv`
 git clone <repository URL>
 cd SEBASTES
 python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 `requirements.txt` installs `opencv-python-headless`, not `opencv-python`. On Linux, the regular `opencv-python` package bundles its own Qt, which can stop PySide6 from opening its window. If you already have it in the environment, remove it with `pip uninstall opencv-python`.
 
+## Installation on Windows
+
+1. **Install Python.** Download the 64-bit Python 3.12 installer from [python.org](https://www.python.org/downloads/windows/). In the first screen of the installer, tick **Add python.exe to PATH**.
+2. **Get SEBASTES.** Either:
+   - install [Git for Windows](https://git-scm.com/download/win) and clone the repository (below), or
+   - on the GitHub page, use **Code > Download ZIP** and extract it. Then skip the `git clone` line, and `cd` into the extracted folder. GitHub adds the branch to its name, as in `SEBASTES-main`.
+3. **Create the environment.** Open **PowerShell** in the folder where you want SEBASTES and run:
+
+   ```powershell
+   git clone <repository URL>
+   cd SEBASTES
+   py -3.12 -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   ```
+
+If PowerShell says that running scripts is disabled on this system, use one of these:
+- Allow scripts for your user once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Then run `.venv\Scripts\Activate.ps1` again.
+- Use **Command Prompt** (`cmd.exe`) instead of PowerShell, and activate with `.venv\Scripts\activate.bat`.
+
 ## Running
 
+Activate the environment in every new terminal, then start `application/MainWindow.py`.
+
+Linux:
+
 ```bash
+cd SEBASTES
 source .venv/bin/activate
 python application/MainWindow.py
 ```
 
-You can start it from any folder. On Windows, `python SEBASTES.py` from inside `application/` also works: it writes the console output to `logs/`.
+Windows (PowerShell):
+
+```powershell
+cd SEBASTES
+.venv\Scripts\Activate.ps1
+python application\MainWindow.py
+```
+
+`MainWindow.py` finds its own files, so it also works from another folder if you give its full path.
+
+On Windows there are two other ways to start it:
+- **With an error log.** From inside `application\`, run `python SEBASTES.py`. It starts SEBASTES and writes its console output to `logs\`.
+- **From a desktop shortcut, without a terminal.** Create a shortcut whose target is the environment's `pythonw.exe` followed by `MainWindow.py`, for example:
+
+  ```
+  C:\Users\you\SEBASTES\.venv\Scripts\pythonw.exe C:\Users\you\SEBASTES\application\MainWindow.py
+  ```
 
 ## Folder layout
 
@@ -166,7 +207,9 @@ The image adjustments (brightness, contrast…) are saved to `<deployment>_image
 
 ## Troubleshooting
 
-- **The window does not open on Linux** (`Could not load the Qt platform plugin "xcb"`). Check that `opencv-python` is not installed (see Installation) and install `libxcb-cursor0` (`sudo apt install libxcb-cursor0`).
+- **The window does not open on Linux** (`Could not load the Qt platform plugin "xcb"`). Check that `opencv-python` is not installed (see Installation on Linux) and install `libxcb-cursor0` (`sudo apt install libxcb-cursor0`).
+- **Windows: `python` or `py` is not recognized, or `python` opens the Microsoft Store.** Python is not installed or not on the PATH. Run the Python installer again, choose **Modify**, and enable **Add Python to environment variables**. Then open a new terminal.
+- **Windows: `DLL load failed while importing ...`.** Install the latest Microsoft Visual C++ Redistributable (x64) from Microsoft's website, then try again.
 - **SEBASTES closes after an error while loading a deployment.** This is how SEBASTES handles every loading error. Read the message: usually a camera subfolder is missing, or it holds no video or more than one.
 - **"Timestamp could not be extracted from file name"**. Image profiles without a timestamp type show this warning on every load. You can ignore it.
 
