@@ -106,6 +106,8 @@ Open **Settings > Profiles...** and go to the **Species Collections** tab.
 
 A species collection holds up to 30 species. Each one becomes a button that you use while annotating: only the buttons that have a species are shown, and the second tab of the species panel (species 16 to 30) appears only when there are more than 15. The collection is saved when you insert its first species.
 
+SEBASTES remembers the size and position of its window and of its panels (Species, Measurements) from one session to the next.
+
 ### 2. Profile
 
 A profile tells SEBASTES how a deployment folder is organized. In the same dialog, go to the **Profiles** tab.

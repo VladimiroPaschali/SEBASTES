@@ -25,6 +25,13 @@ from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg
 from exif import Image
 
+#  The version of the layout of the window that closeEvent saves with the geometry and the places of the docks. Raise it when
+#  the layout changes, so that the layouts saved before are not restored over the new one.
+LAYOUT_VERSION = 1
+
+#  the width of the Measurements panel when no layout was saved
+MEASUREMENTS_WIDTH = 380
+
 #  how many deployments the welcome page lists as the ones opened last
 RECENT_DEPLOYMENTS = 8
 
@@ -286,24 +293,28 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         #  restore the application state
         self.appSettings = QSettings('afsc.noaa.gov', 'Sebastes')
-        position = self.appSettings.value('winposition', QPoint(10,10))
-        size = self.appSettings.value('winsize', QSize(940,646))
-
-        #  Keep valid positions on secondary monitors, including negative coordinates.
-        #  If that monitor was disconnected, use the primary screen instead.
-        screenObj = QGuiApplication.screenAt(position) or QGuiApplication.primaryScreen()
-        screenGeometry = screenObj.availableGeometry()
-        #  Leave room for the window frame and title bar, and exclude the taskbar.
-        size.setWidth(max(1, min(size.width(), screenGeometry.width() - 50)))
-        size.setHeight(max(1, min(size.height(), screenGeometry.height() - 50)))
-        position.setX(max(screenGeometry.left(), min(position.x(),
-            screenGeometry.right() - size.width() - 49)))
-        position.setY(max(screenGeometry.top(), min(position.y(),
-            screenGeometry.bottom() - size.height() - 49)))
-
-        #  now move and resize the window
-        self.move(position)
-        self.resize(size)
+        #  The window geometry and the places of the docks are saved when SEBASTES closes (closeEvent), together with
+        #  LAYOUT_VERSION: a layout saved by a version of the window that is laid out differently is ignored.
+        self.layoutRestored=False
+        try:
+            savedVersion=int(self.appSettings.value('layoutVersion', 0))
+        except (TypeError, ValueError):
+            savedVersion=0
+        geometry=self.appSettings.value('geometry') if savedVersion==LAYOUT_VERSION else None
+        if geometry is None or not self.restoreGeometry(geometry):
+            position = self.appSettings.value('winposition', QPoint(10,10))
+            size = self.appSettings.value('winsize', QSize(940,646))
+            self.move(position)
+            self.resize(size)
+        #  The monitor the window was on may be gone, or the screen smaller: keep the window on a screen.
+        self.keepOnScreen()
+        state=self.appSettings.value('windowState') if savedVersion==LAYOUT_VERSION else None
+        if state is not None:
+            self.layoutRestored=self.restoreState(state, LAYOUT_VERSION)
+        # the docks open when they are needed (a deployment is loaded, Record is pressed) and the toolbar can't be closed
+        for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
+            dock.hide()
+        self.mainToolBar.show()
 
         self.__dataDir = self.appSettings.value('self.dataPath', QDir.home().path())
         self.__copyImageDir = self.appSettings.value('copyimagedir', QDir.home().path())
@@ -393,6 +404,28 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.showWelcome()
 
     ######################0. WINDOW LAYOUT################################
+
+    def keepOnScreen(self):
+        '''
+        keepOnScreen moves and shrinks the window so that it is inside the screen it is on. Valid positions on secondary
+        monitors, including negative coordinates, are kept. If that monitor was disconnected, the primary screen is used.
+        '''
+        if self.isMaximized() or self.isFullScreen():
+            return
+        position = self.pos()
+        size = self.size()
+        screenObj = QGuiApplication.screenAt(position) or QGuiApplication.primaryScreen()
+        screenGeometry = screenObj.availableGeometry()
+        #  Leave room for the window frame and title bar, and exclude the taskbar.
+        size.setWidth(max(1, min(size.width(), screenGeometry.width() - 50)))
+        size.setHeight(max(1, min(size.height(), screenGeometry.height() - 50)))
+        position.setX(max(screenGeometry.left(), min(position.x(),
+            screenGeometry.right() - size.width() - 49)))
+        position.setY(max(screenGeometry.top(), min(position.y(),
+            screenGeometry.bottom() - size.height() - 49)))
+        #  now move and resize the window
+        self.move(position)
+        self.resize(size)
 
     def setupToolBar(self):
         '''
@@ -1646,8 +1679,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.measurementsDock.setDeployment(self.dataDB, self.deployment)
             if self.measurementsDock.isHidden():
                 self.measurementsDock.show()
-                # wide enough for the columns but not more than 30 % of the window; the user can drag its edge
-                self.resizeDocks([self.measurementsDock], [min(self.measurementsDock.preferredWidth(), int(0.3*self.width()))], Qt.Orientation.Horizontal)
+                if not self.layoutRestored:
+                    # no saved layout: a width that shows the main columns, and not more than 30 % of the window; the user can drag its edge
+                    self.resizeDocks([self.measurementsDock], [min(MEASUREMENTS_WIDTH, int(0.3*self.width()))], Qt.Orientation.Horizontal)
             return True
         except:
             self.showError()
@@ -4249,6 +4283,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         #  shut down the fetchers and accept
         self.appSettings.setValue('winposition', self.pos())
         self.appSettings.setValue('winsize', self.size())
+        # the layout of the window: restored at the next start (see __init__)
+        self.appSettings.setValue('layoutVersion', LAYOUT_VERSION)
+        self.appSettings.setValue('geometry', self.saveGeometry())
+        self.appSettings.setValue('windowState', self.saveState(LAYOUT_VERSION))
         self.appSettings.setValue('samplerate', self.sampleRateEdit.text())
         self.appSettings.setValue('zoomwinposition', self.closeup.pos())
         self.appSettings.setValue('copyimagedir', self.__copyImageDir)
