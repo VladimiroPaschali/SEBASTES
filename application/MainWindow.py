@@ -582,6 +582,15 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.recordBtn.toggled.connect(self.updateStatusMode)
         self.trainBtn.toggled.connect(self.updateStatusMode)
 
+    def statusMessageRoom(self):
+        '''
+        statusMessageRoom is the width (px) the status bar leaves for a message: what the widgets at its right don't take
+        (with some room for the size grip and the margins).
+        '''
+        taken=sum(widget.sizeHint().width() for widget in [self.measureChip, self.modeLabel, self.annotatorBox, self.deploymentBox]
+                  if not widget.isHidden())
+        return self.statusBar.width()-taken-45
+
     def updateStatusMode(self, *args):
         '''
         updateStatusMode shows in the status bar whether we are viewing or recording.
@@ -894,7 +903,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         for point in points:
             curve=epipolar.epipolarCurve(self.stereoComp.calData, (point.x(), point.y()), 'L' if imageObj is self.gvLeft else 'R',
                                          size if size[0]>0 else None)
-            item=otherObj.addCurve(curve, color=[color.red(), color.green(), color.blue()], thickness=1.5, linestyle='-')
+            # a halo under the curve, light under a dark accent and dark under a light one, so that it reads on any background
+            halo=QColor(255, 255, 255) if color.lightness()<128 else QColor(0, 0, 0)
+            item=otherObj.addCurve(curve, color=[color.red(), color.green(), color.blue()], thickness=1.5, linestyle='-',
+                                   halo=[halo.red(), halo.green(), halo.blue()])
             if item is not None:
                 self.epipolarItems[otherObj].append(item)
         otherObj.viewport().update()
@@ -924,20 +936,29 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def showMeasureChip(self, name, e, rng, length=None, epi=None):
         '''
-        showMeasureChip shows how good the measurement just saved is, in the status bar: its name, length (fish only),
-        range from the left camera, the reprojection error e and the epipolar distance epi. The colour follows e:
-        green below CHIP_OK_BELOW, amber below CHIP_WARN_BELOW, else red.
+        showMeasureChip shows how good the measurement just saved is, in the status bar: its name, its length (the range
+        from the left camera for a point) and the reprojection error e. It is kept short, as the status bar also holds the
+        guided marking prompt: the epipolar distance epi is in the text only when it is CHIP_OK_BELOW px or more, and
+        range and epi are always in the tooltip. The colour follows e: green below CHIP_OK_BELOW, amber below
+        CHIP_WARN_BELOW, else red.
         '''
         parts=[name]
+        details=[]
         if length is not None:
             parts.append('%.1f cm' % length)
-        parts.append('range %.0f cm' % rng)
+            details.append('length %.1f cm' % length)
+        else:
+            parts.append('range %.0f cm' % rng)
+        details.append('range %.0f cm' % rng)
         parts.append('e %.1f px' % e)
+        details.append('e %.2f px' % e)
         if epi is not None:
-            parts.append('epi %.1f px' % epi)
+            details.append('epi %.2f px' % epi)
+            if epi>=CHIP_OK_BELOW:
+                parts.append('epi %.1f px' % epi)
         self.measureChip.setText(' \u00b7 '.join(parts))
         theme.setChipLevel(self.measureChip, 'ok' if e<CHIP_OK_BELOW else 'warn' if e<CHIP_WARN_BELOW else 'bad')
-        self.measureChip.setToolTip("e = reprojection error: how far (px) the 3D point falls from the clicks when it is projected back into the "+
+        self.measureChip.setToolTip(name+': '+', '.join(details)+"\n\n"+"e = reprojection error: how far (px) the 3D point falls from the clicks when it is projected back into the "+
             "images; a large e on every fish means the calibration doesn't match the videos.\n"+
             "epi = how far (px) a click is from the epipolar line of its match in the other image (the worse end of a line); "+
             "a large epi means the two clicks are not the same point of the fish.\n"+
@@ -2955,8 +2976,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.updateFishGuide()
         name=self.nameMeasurement(self.fishTarget, label)
         self.showLineChip(name)
-        self.statusBar.showMessage(name+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '+
-                self.statusBar.currentMessage())
+        # the chip shows the name and the length too: the notice goes when it would push the prompt out of the status bar
+        notice=name+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '
+        prompt=self.statusBar.currentMessage()
+        if self.statusBar.fontMetrics().horizontalAdvance(notice+prompt)>self.statusMessageRoom():
+            notice=''
+        self.statusBar.showMessage(notice+prompt)
         if self.showDataCheck.isChecked():
             self.datadlg.refreshView()
 

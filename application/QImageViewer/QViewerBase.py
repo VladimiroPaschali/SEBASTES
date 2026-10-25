@@ -754,13 +754,14 @@ class QViewerBase(QGraphicsView):
 
 
 
-    def addCurve(self, points, color=[220,0,0], thickness=1.5, alpha=255, linestyle='-', name='QIVCurve'):
+    def addCurve(self, points, color=[220,0,0], thickness=1.5, alpha=255, linestyle='-', name='QIVCurve', halo=None):
         """
         Adds a line through the provided points (a list or an array of x, y pairs in image coordinates)
         that is drawn above the image and below the marks. The curve can't be selected and doesn't take
         mouse clicks. Its pen is cosmetic: thickness is in screen pixels at any zoom. linestyle is as in
         startDimensionLine. Returns the item, or None when there are fewer than two points. Remove it with
-        removeItem, or with removeAllItems along with everything else.
+        removeItem, or with removeAllItems along with everything else. halo is an RGB triplet: the curve then has
+        a wider, translucent, solid line of that colour under it, to read on any background.
         """
 
         if len(points) < 2:
@@ -781,6 +782,15 @@ class QViewerBase(QGraphicsView):
         curve.setZValue(CURVE_Z)
         curve.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         curve.setData(0, name)
+        if halo is not None:
+            #  a child that is drawn behind the curve: it goes with it when the curve is removed
+            under = QGraphicsPathItem(path, curve)
+            underPen = QPen(QColor(halo[0], halo[1], halo[2], 150))
+            underPen.setWidthF(thickness + 2.0)
+            underPen.setCosmetic(True)
+            under.setPen(underPen)
+            under.setFlag(QGraphicsItem.GraphicsItemFlag.ItemStacksBehindParent, True)
+            under.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         self.scene.addItem(curve)
         self.sceneItems.append(curve)
         return curve
