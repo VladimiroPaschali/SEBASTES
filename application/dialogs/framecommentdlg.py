@@ -13,7 +13,7 @@ class CommentDlg(QDialog, ui_commentDlg.Ui_commentDlg):
         self.deployment=parent.deployment
         self.saveAndExitBtn.hide()
         self.dataDB=parent.dataDB
-        self.frame=parent.frameBox.text()
+        self.frame=parent.frameText()
         self.classLabel.hide()
         self.targetLabel.setText('Active Frame Number')
         self.tNumLabel.setText(self.frame)
