@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import datetime
 
@@ -11,7 +12,7 @@ if not (os.path.exists(ERRORLOGPATH)):
     os.mkdir(ERRORLOGPATH)
 
 #  generate a file name for the log file
-logFileName = datetime.datetime.utcnow().strftime('D%m%d%YT%H%M%S')
+logFileName = datetime.datetime.now(datetime.timezone.utc).strftime('D%m%d%YT%H%M%S')
 logFileName = ERRORLOGPATH + 'SEBASTES_Errors-' + logFileName + '.txt'
 output_f = open(logFileName, 'w')
 
@@ -19,7 +20,7 @@ output_f = open(logFileName, 'w')
 startupinfo = None
 
 #  start SEBASTES and pipe the console output to our errors file
-p = subprocess.Popen('python .\\MainWindow.py', stdout=output_f, stderr=output_f,
+p = subprocess.Popen([sys.executable, '.\\MainWindow.py'], stdout=output_f, stderr=output_f,
                      startupinfo=startupinfo)
 
 

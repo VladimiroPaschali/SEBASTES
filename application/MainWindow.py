@@ -1528,6 +1528,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     imTime=self.rightImageDict[currentFrame][0]
                     imPath=self.RPath
                 else:
+                    gvObj.clearViewer()# this camera has no image for the frame
                     return
             imgFileLoc=imPath+imFile
 
@@ -1540,13 +1541,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if self.videoMode:
                 image=self.videoSources[imPath].getFrame(currentFrame)
                 if image is None:
+                    gvObj.clearViewer()
                     return
                 gvObj.setImageFromCvImage(image)
             else:
                 gvObj.setImageFromFile(imgFileLoc)
             gvObj.resetView()
             gvObj.fillExtent()
-            self.activeMark[gvObj]==None
+            self.activeMark[gvObj]=None
             self.mouseInWidget(self.mousebits[0], self.mousebits[1], self.mousebits[2])
             return imgFileLoc
 
@@ -1647,8 +1649,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 old_spc=btn.text()
                 new_sort=str(self.spcButtons.index(btn)+1)
                 # update db
-                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+old_sort+" WHERE species_group='"+sqlQuote(old_spc)+"'")
-                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+new_sort+" WHERE species_group='"+sqlQuote(new_spc)+"'")
+                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+old_sort+" WHERE species_group='"+sqlQuote(old_spc)+"' AND species_collection='"+sqlQuote(self.speciesCollection)+"'")
+                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+new_sort+" WHERE species_group='"+sqlQuote(new_spc)+"' AND species_collection='"+sqlQuote(self.speciesCollection)+"'")
                 self.setupSpcBtns()
         else:
             self.pressTime.start()
@@ -1783,12 +1785,15 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # this is to quick undo auto targets only
             if self.computeMatchBox.isChecked():
                 # remove current mark and delete from db
+                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 # remove mark
                 self.gvLeft.removeItem(self.activeMark[self.gvLeft])
                 self.gvLeft.update()
                 self.gvRight.removeItem(self.activeMark[self.gvRight])
                 self.gvRight.update()
+                self.measurementsDock.refresh()
                 
     def __keyReleaseEvent(self,ivObj, ev):
         # no key is being held down right now
@@ -2666,7 +2671,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if btn.isChecked():
                 self.spcInd=self.spcButtons.index(btn)
                 break
-        if self.spcInd:
+        if self.spcInd is not None:
             species_selected=self.spcButtons[self.spcInd].text()
             query = self.dataDB.dbQuery("SELECT count(*) FROM targets WHERE species_group='"+sqlQuote(species_selected)+
             "' AND frame_number="+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
@@ -3610,10 +3615,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if gridsize==self.gridSetup['GridSize']:# if grid size is same, reload previous grid
                 query=self.dataDB.dbQuery("SELECT metadata_value FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
                 " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='RandomCell' AND deployment_id='"+sqlQuote(self.deployment)+"'")
-                if query.first()[0]=='None':
+                randomCell, =query.first()
+                if randomCell in (None, 'None'):
                     self.randomCell=None
                 else:
-                    self.randomCell=int(query.first()[0])
+                    self.randomCell=int(randomCell)
                 query=self.dataDB.dbQuery("SELECT metadata_tag FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
                 " AND metadata_group='CountingGridInformation' AND metadata_type='GridSize' AND metadata_value='"+gridsize+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 self.gridCount=int(query.first()[0])

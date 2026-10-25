@@ -33,7 +33,7 @@ class videoSource(object):
         getFrame returns the requested frame as a BGR numpy array, or None if it
         can't be read.
         '''
-        if 0 < frame - self.nextFrame <= MAX_GRAB:
+        if self.nextFrame >= 0 and 0 < frame - self.nextFrame <= MAX_GRAB:
             #  short jump forward (playback, stepping by the sample rate)
             while self.nextFrame < frame and self.cap.grab():
                 self.nextFrame += 1
