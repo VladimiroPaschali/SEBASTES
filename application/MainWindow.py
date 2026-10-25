@@ -188,6 +188,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             cnt+=1
         self.pressTime=QElapsedTimer()
         self.pressTime.start()
+        # the keys 1 to 9 select a species button (typing a digit in a text box is not taken: the box handles it first)
+        self.speciesKeys=[]
+        for number in range(1, 10):
+            key=QShortcut(QKeySequence(str(number)), self)
+            key.activated.connect(lambda number=number: self.selectSpeciesByKey(number))
+            self.speciesKeys.append(key)
         
         self.recomputeBtn.triggered.connect(self.recompute3D)
         self.recordBtn.triggered.connect(self.toggleRecord)
@@ -951,6 +957,28 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.measureChip.hide()
         self.measureChip.setText('')
 
+    def speciesKeyButtons(self):
+        # the species buttons the number keys select: the first nine that are shown in the tab on screen
+        tab=self.speciesTabWidget.currentWidget()
+        return [btn for btn in self.spcButtons if tab.isAncestorOf(btn) and not btn.isHidden()][:9]
+
+    def selectSpeciesByKey(self, number):
+        '''
+        selectSpeciesByKey does what a click on the species button number does (btnPress and btnRelease), without the double
+        click check there: two keys within a quarter of a second must not open the species list. Only while recording.
+        '''
+        buttons=self.speciesKeyButtons()
+        if not self.recordBtn.isChecked() or number>len(buttons):
+            return
+        btn=buttons[number-1]
+        if self.measureBtn.isChecked():
+            self.measureBtn.setChecked(False)
+        for other in self.spcButtons:
+            if other is not btn:
+                other.setChecked(False)
+        btn.setChecked(not btn.isChecked())
+        self.incrementCounters()
+
     ######################1. SETUP FUNCTIONS################################
     
     def cameraViewAction(self):
@@ -1095,6 +1123,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 btn.setToolTip('')
                 btn.setStyleSheet('')
             btn.setVisible(index<count)
+        # the number keys select the first nine buttons of the tab on screen: say so in their tooltips
+        for tab in [self.tab_1, self.tab_2]:
+            for number, btn in enumerate([btn for btn in self.spcButtons if tab.isAncestorOf(btn) and not btn.isHidden()][:9], 1):
+                btn.setToolTip(re.sub(r' ?\(key \d\)$', '', btn.toolTip()) + ' (key '+str(number)+')')
         firstTabSize=len(self.tab_1.findChildren(QPushButton))
         second=self.speciesTabWidget.indexOf(self.tab_2)
         self.speciesTabWidget.setTabVisible(second, count>firstTabSize)
