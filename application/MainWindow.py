@@ -35,6 +35,10 @@ MEASUREMENTS_WIDTH = 380
 #  how many deployments the welcome page lists as the ones opened last
 RECENT_DEPLOYMENTS = 8
 
+#  the measurement chip in the status bar is green below CHIP_OK_BELOW px of reprojection error, amber below CHIP_WARN_BELOW, else red
+CHIP_OK_BELOW = 2.0
+CHIP_WARN_BELOW = 5.0
+
 
 def strtobool(val):
     # replaces distutils.util.strtobool - distutils was removed in Python 3.12
@@ -549,6 +553,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.deploymentBox.setStyleSheet('color: palette(window-text);')
         for widget in [self.modeLabel, self.annotatorBox, self.deploymentBox]:
             bar.addPermanentWidget(widget)
+        # how good the last measurement is: hidden until the first one of the session (showMeasureChip)
+        self.measureChip=QLabel()
+        self.measureChip.setObjectName('measureChip')
+        self.measureChip.setProperty('level', 'ok')
+        self.measureChip.hide()
+        bar.insertPermanentWidget(0, self.measureChip)
         self.recordBtn.toggled.connect(self.updateStatusMode)
         self.trainBtn.toggled.connect(self.updateStatusMode)
 
@@ -875,6 +885,71 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         color=QColor(theme.colors()['accentSoft'])
         for imageObj in [self.gvLeft, self.gvRight]:
             imageObj.setHighlighted(color if self.fishGuideActive() and self.fishImage() is imageObj else None)
+
+    def epipolarMismatch(self, pairs):
+        '''
+        epipolarMismatch returns the largest distance (px) of a pair of clicked points, ((left x, y), (right x, y)), from
+        being a valid match (epipolar.epipolarDistance), or None when it can't be worked out.
+        '''
+        try:
+            size=(self.gvLeft.imgPixmap.width(), self.gvLeft.imgPixmap.height())
+            distances=[epipolar.epipolarDistance(self.stereoComp.calData, left, right, size if size[0]>0 else None) for left, right in pairs]
+            distances=[d for d in distances if d is not None]
+            return max(distances) if distances else None
+        except Exception:
+            traceback.print_exc()
+            return None
+
+    def showMeasureChip(self, name, e, rng, length=None, epi=None):
+        '''
+        showMeasureChip shows how good the measurement just saved is, in the status bar: its name, length (fish only),
+        range from the left camera, the reprojection error e and the epipolar distance epi. The colour follows e:
+        green below CHIP_OK_BELOW, amber below CHIP_WARN_BELOW, else red.
+        '''
+        parts=[name]
+        if length is not None:
+            parts.append('%.1f cm' % length)
+        parts.append('range %.0f cm' % rng)
+        parts.append('e %.1f px' % e)
+        if epi is not None:
+            parts.append('epi %.1f px' % epi)
+        self.measureChip.setText(' \u00b7 '.join(parts))
+        theme.setChipLevel(self.measureChip, 'ok' if e<CHIP_OK_BELOW else 'warn' if e<CHIP_WARN_BELOW else 'bad')
+        self.measureChip.setToolTip("e = reprojection error: how far (px) the 3D point falls from the clicks when it is projected back into the "+
+            "images; a large e on every fish means the calibration doesn't match the videos.\n"+
+            "epi = how far (px) a click is from the epipolar line of its match in the other image (the worse end of a line); "+
+            "a large epi means the two clicks are not the same point of the fish.\n"+
+            "range = distance from the left camera; for a fish, of the middle of its line.\n"+
+            "Green: e below %g px, amber: below %g px, red: %g px or more." % (CHIP_OK_BELOW, CHIP_WARN_BELOW, CHIP_WARN_BELOW))
+        self.measureChip.show()
+
+    def showLineChip(self, name):
+        '''
+        showLineChip shows the chip for the length just computed (calculate('line'), left in self.targetStereoData).
+        '''
+        try:
+            data=self.targetStereoData
+            # data[1] (the range calculate gives) is not used: it adds half of the tail's x to the head's. The range of the
+            # middle of the line is worked out from the 3D end points data[11:17], in the same units.
+            rng=sqrt(((data[11]+data[14])/2)**2+((data[12]+data[15])/2)**2+((data[13]+data[16])/2)**2)
+            epi=self.epipolarMismatch([((data[3], data[4]), (data[7], data[8])), ((data[5], data[6]), (data[9], data[10]))])
+            self.showMeasureChip(name, data[2], rng, length=data[0], epi=epi)
+        except Exception:
+            traceback.print_exc()
+
+    def showPointChip(self, target):
+        '''
+        showPointChip shows the chip for the stereo point just computed (calculate('point'): range, e, x, y, z).
+        '''
+        try:
+            data=self.targetStereoData
+            self.showMeasureChip('Target '+str(target), data[1], data[0])
+        except Exception:
+            traceback.print_exc()
+
+    def clearMeasureChip(self):
+        self.measureChip.hide()
+        self.measureChip.setText('')
 
     ######################1. SETUP FUNCTIONS################################
     
@@ -1298,6 +1373,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         closeDeployment saves and closes the deployment that is open, if any.
         '''
         self.stopPlay()
+        self.clearMeasureChip()
         if self.dataDB is not None:
             self.writeFrameData()
             self.dataDB.dbClose()
@@ -1313,6 +1389,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         that another one can be chosen. The reason has been shown to the user already.
         '''
         self.stopPlay()
+        self.clearMeasureChip()
         if self.dataDB is not None:
             self.dataDB.dbClose()
             self.dataDB=None
@@ -2548,6 +2625,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY, X,Y,Z, range, error)  "+
                                         "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
                                         str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
+                                        self.showPointChip(self.currentTarget)
                                         self.pairPoints=[]
 
                                         if len(self.linkData)>0:
@@ -2607,6 +2685,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY, X,Y,Z, range, error)  "+
                                     "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
                                     str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
+                                    self.showPointChip(self.currentTarget)
                                     self.pairPoints=[]
                                     if len(self.linkData)>0:
                                         self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
@@ -2807,6 +2886,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.fishLines={}
         self.updateFishGuide()
         name=self.nameMeasurement(self.fishTarget, label)
+        self.showLineChip(name)
         self.statusBar.showMessage(name+': '+label+' '+str(round(self.targetStereoData[0], 2))+' cm saved. '+
                 self.statusBar.currentMessage())
         if self.showDataCheck.isChecked():
@@ -3017,7 +3097,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
                                         "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                         ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
-                            self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
+                            name=self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
+                            self.showLineChip(name)
                         self.measureBtn.setChecked(False)
 
                 else: # line is drawn on only one side
@@ -3120,7 +3201,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
                                             "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                             ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
-                                self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
+                                name=self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
+                                self.showLineChip(name)
                             self.measureBtn.setChecked(False)
 
 
