@@ -301,7 +301,7 @@ class ProfileSetupDlg(QDialog, ui_ProfileSetupDlg.Ui_profileSetupDlg):
                 index1= self.metadataModel.index(selObj.row(), 0, QModelIndex())
                 metadata_var=self.metadataModel.data(index1, Qt.DisplayRole)
                 sql=("DELETE FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
-                    " AND metadata_tag='"+metadata_var+"'")
+                    "' AND metadata_tag='"+metadata_var+"'")
                 # give warning
                 reply=QMessageBox.warning(self, "ERROR", "If you delete this metadata record, it will not appear in sebasstes in the future!",  QMessageBox.Yes, QMessageBox.No)
                 if reply==QMessageBox.No:

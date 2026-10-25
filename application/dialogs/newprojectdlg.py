@@ -3,6 +3,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from dialogs.ui import  ui_NewProjectDlg
+from dbConnection import sqlQuote
 
 class NewProjectDlg(QDialog, ui_NewProjectDlg.Ui_newProjectDlg):
     def __init__(self, parent):
@@ -11,7 +12,6 @@ class NewProjectDlg(QDialog, ui_NewProjectDlg.Ui_newProjectDlg):
         self.appDB=parent.appDB
         self.okBtn.clicked.connect(self.exitCheck)
         self.cancelBtn.clicked.connect(self.cancel)
-        self.bad=False
         self.populateBoxWidgets()
         
     def populateBoxWidgets(self):
@@ -27,37 +27,44 @@ class NewProjectDlg(QDialog, ui_NewProjectDlg.Ui_newProjectDlg):
         
         
     def insertProject(self):
+        '''
+        insertProject adds the project to the application db. It returns False, after telling the
+        user why, when the project can't be created.
+        '''
+        name=self.projNameEdit.text().strip()
+        if name=='':
+            QMessageBox.warning(self, "ERROR", 'Give the project a name!')
+            return False
+        if self.speciesBox.currentIndex()<0 or self.metadataBox.currentIndex()<0:
+            QMessageBox.warning(self, "ERROR", 'Select species and metadata!')
+            return False
+        query=self.appDB.dbQuery("SELECT PROJECT FROM PROJECTS WHERE PROJECT='"+sqlQuote(name)+"'")
+        if query.first()[0]!=None:
+            QMessageBox.warning(self, "ERROR", 'There is a project called '+name+' already!')
+            return False
         desc=self.descEdit.toPlainText()
-        desc=desc.strip("'")
-        desc=desc.strip(",")
         if self.yesRadio.isChecked():
             active='Yes'
         else:
             active='No'
-        if self.speciesBox.currentIndex()<0 or self.metadataBox.currentIndex()<0:
-            QMessageBox.warning(self, "ERROR", 'Select species and metadata!')
-            self.bad=True
-            return
         query=self.appDB.dbExec("INSERT INTO PROJECTS (PROJECT, DESCRIPTION, DATABASE_PATH, SPECIES_COLLECTION,  METADATA_GROUP,  ACTIVE) VALUES("+
-        "'"+self.projNameEdit.text()+"', '"+desc+"', 'NA', '"+self.speciesBox.currentText()+"', '"+self.metadataBox.currentText()+"', '"+active+"')")
+        "'"+sqlQuote(name)+"', '"+sqlQuote(desc)+"', 'NA', '"+sqlQuote(self.speciesBox.currentText())+"', '"+sqlQuote(self.metadataBox.currentText())+"', '"+active+"')")
         # make sure it happened and tell folks so
-        query1=self.appDB.dbQuery("SELECT PROJECT FROM PROJECTS WHERE PROJECT='"+self.projNameEdit.text()+"'")
-        if query1.first():
+        query1=self.appDB.dbQuery("SELECT PROJECT FROM PROJECTS WHERE PROJECT='"+sqlQuote(name)+"'")
+        if query1.first()[0]!=None:
             QMessageBox.information(self, "NOTE", 'Project has been created!')
-        else:
-            QMessageBox.warning(self, "ERROR", 'Something is wrong: '+query.lastError().text())
-        
+            return True
+        QMessageBox.warning(self, "ERROR", 'Something is wrong: '+query.lastError().text())
+        return False
+
     @Slot()
     def cancel(self):
         self.reject()
         
 
     def exitCheck(self):
-        if not self.bad:
-            self.insertProject()
+        if self.insertProject():
             self.exit()
-        else:
-            return
             
     @Slot()        
     def exit(self):

@@ -43,11 +43,17 @@ class GridSetupDlg(QDialog, ui_GridSetupDlg.Ui_gridSetupDlg):
 
     def getColor(self):
         if self.sender()==self.gridlineColorBtn:
-            self.gLineCol=QColorDialog().getColor(self.gLineCol,  self)
+            color=QColorDialog().getColor(self.gLineCol,  self)
+            if not color.isValid():# cancelled
+                return
+            self.gLineCol=color
             colstr=str(self.gLineCol.getRgb()[0])+","+str(self.gLineCol.getRgb()[1])+","+str(self.gLineCol.getRgb()[2])
             self.gridlineColorLabel.setStyleSheet("QLabel { background-color : rgb("+colstr+");}")
         else:
-            self.cLineCol=QColorDialog().getColor(self.cLineCol,  self)
+            color=QColorDialog().getColor(self.cLineCol,  self)
+            if not color.isValid():# cancelled
+                return
+            self.cLineCol=color
             colstr=str(self.cLineCol.getRgb()[0])+","+str(self.cLineCol.getRgb()[1])+","+str(self.cLineCol.getRgb()[2])
             self.cellColorLabel.setStyleSheet("QLabel { background-color : rgb("+colstr+");}")
             
@@ -70,11 +76,11 @@ class GridSetupDlg(QDialog, ui_GridSetupDlg.Ui_gridSetupDlg):
             self.gridSetup['CellBoundary']=False
         self.gridSetup['CellLineColor']=self.cLineCol.getRgb()[0:3]
                 
-    @pyqtSlot()
+    @Slot()
     def cancel(self):
         self.reject()
         
-    @pyqtSlot()
+    @Slot()
     def exit(self):
         self.readSettings()
         self.accept()

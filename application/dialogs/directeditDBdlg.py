@@ -3,6 +3,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from dialogs.ui import ui_EditDBDlg
+import sys
 import traceback
 
 class DirectEditDBDlg(QDialog, ui_EditDBDlg.Ui_editDBDlg):
@@ -169,7 +170,8 @@ class DirectEditDBDlg(QDialog, ui_EditDBDlg.Ui_editDBDlg):
                 if self.mode=='application':
                     k=self.activeDB.db.databaseName()
                     bits=k.split('Application.db')
-                    QFile().copy(k, bits[0]+'Backup.db')
+                    QFile.remove(bits[0]+'Backup.db')# copy doesn't overwrite
+                    QFile.copy(k, bits[0]+'Backup.db')
                 self.activeDB.dbExec(phrase)
             except:
                 t=traceback.format_exception(*sys.exc_info())

@@ -56,11 +56,17 @@ class GuiSettingDlg(QDialog, ui_GuiSettingDlg.Ui_guiSettingDlg):
 
     def getColor(self):
         if self.sender()==self.targetLineColorBtn:
-            self.tLineCol=QColorDialog().getColor(self.tLineCol,  self)
+            color=QColorDialog().getColor(self.tLineCol,  self)
+            if not color.isValid():# cancelled
+                return
+            self.tLineCol=color
             colstr=str(self.tLineCol.getRgb()[0])+","+str(self.tLineCol.getRgb()[1])+","+str(self.tLineCol.getRgb()[2])
             self.targetColorLabel.setStyleSheet("QLabel { background-color : rgb("+colstr+");}")
         else:
-            self.sceneCol=QColorDialog().getColor(self.sceneCol,  self)
+            color=QColorDialog().getColor(self.sceneCol,  self)
+            if not color.isValid():# cancelled
+                return
+            self.sceneCol=color
             colstr=str(self.sceneCol.getRgb()[0])+","+str(self.sceneCol.getRgb()[1])+","+str(self.sceneCol.getRgb()[2])
             self.sceneColorLabel.setStyleSheet("QLabel { background-color : rgb("+colstr+");}")
             

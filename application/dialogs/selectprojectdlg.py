@@ -58,7 +58,7 @@ class SelectProjectDlg(QDialog, ui_SelectProjectDlg.Ui_selectProjectDlg):
         if dlg.exec_():
             self.refreshList()
             # select the new one
-            self.selectedProject=dlg.projectNameEdit.text()
+            self.selectedProject=dlg.projNameEdit.text().strip()
             for i in range(self.projModel.rowCount()):
                 index1= self.projModel.index(i, 0, QModelIndex())
                 if self.projModel.data(index1, Qt.DisplayRole)==self.selectedProject :
@@ -74,4 +74,5 @@ class SelectProjectDlg(QDialog, ui_SelectProjectDlg.Ui_selectProjectDlg):
         if not self.selectedProject:
             QMessageBox.warning(self, "ERROR", 'Nothing was selected!')
             self.reject()
+            return
         self.accept()

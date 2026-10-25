@@ -78,5 +78,5 @@ class MakeSelDlg(QDialog, ui_MakeSelDlg.Ui_makeSelDlg):
         if self.value==None:
             QMessageBox.warning(self, "ERROR", "Ya didn't select anythin'!")
             self.reject()
-
+            return
         self.accept()

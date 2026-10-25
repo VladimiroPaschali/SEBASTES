@@ -35,10 +35,10 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
         self.fromSpeciesBox.setCurrentIndex(-1)
         self.fromSpeciesBox.currentIndexChanged.connect(self.getSpeciesTargets)
         #populate frame range boxes
-        query=self.dataDB.dbQuery("SELECT min(frame_number) as minfr,  max(frame_number) as maxfr FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' GROUP BY species_group ORDER BY species_group")
+        query=self.dataDB.dbQuery("SELECT min(frame_number) as minfr,  max(frame_number) as maxfr FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
         minfr, maxfr=query.first()
-        self.startFrameEdit.setText(minfr)
-        self.endFrameEdit.setText(maxfr)
+        self.startFrameEdit.setText(minfr or '')
+        self.endFrameEdit.setText(maxfr or '')
         self.nextBtn.clicked.connect(self.goToNextFish)
         self.changeBtn.clicked.connect(self.changeSpecies)
         self.changeAllBtn.clicked.connect(self.changeAll)
