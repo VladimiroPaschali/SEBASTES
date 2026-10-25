@@ -2538,13 +2538,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     #check to see if we already have amark on this gv?
                     old_line=None
                     for lineObj, descriptor in self.lineMarks.items():
-                        if descriptor[1]==imageObj and descriptor[0]==self.currentTarget:# we already have a dimension line for this target in this image
+                        if descriptor[1]==imageObj and descriptor[0]==self.currentTarget and descriptor[2]==self.measurementBox.currentText():# we already have a dimension line for this target in this image
                             old_line=lineObj
                             break
                     if old_line:# we do, get rid of it
                         del self.lineMarks[old_line] 
                         imageObj.removeItem(old_line)
-                    self.lineMarks.update({dimLine:[self.currentTarget, imageObj]})
+                    self.lineMarks.update({dimLine:[self.currentTarget, imageObj, self.measurementBox.currentText()]})
                     
 
                 else:
@@ -2900,7 +2900,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             return
         self.fishLines[imageObj]=imageObj.addDimensionLine(head, tail, taillength=self.guiSettings['MeasureLineTailLength'],
                 thickness=self.guiSettings['MeasureLineWidth'], color=self.guiSettings['TargetLineColor'])
-        self.lineMarks.update({self.fishLines[imageObj]:[self.fishTarget, imageObj]})
+        self.lineMarks.update({self.fishLines[imageObj]:[self.fishTarget, imageObj, self.measurementBox.currentText()]})
         if imageObj==self.gvRight:
             self.saveFishLength(auto)
             return
@@ -2939,10 +2939,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
         label=self.measurementBox.currentText()
         values=[str(v) for v in self.targetStereoData]
-        self.keepLineName(self.fishTarget, label)
-        # one line per measurement type and target
-        self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.fishTarget)+
-            " AND line_label='"+label+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+        self.deleteLine(self.fishTarget, label)
         self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
             "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameText()+","+str(self.fishTarget)+",'"+label+"',"+
             ",".join(values[3:17])+","+values[0]+","+values[2]+")")
@@ -2962,6 +2959,15 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.statusBar.currentMessage())
         if self.showDataCheck.isChecked():
             self.datadlg.refreshView()
+
+    def deleteLine(self, target, label):
+        '''
+        deleteLine removes the line of a measurement type of a target from the data: there is one per type and target, so
+        a new one replaces the old one when it is saved. The name of the old one is kept to be offered again.
+        '''
+        self.keepLineName(target, label)
+        self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameText()+" AND target_number ="+str(target)+
+            " AND line_label='"+label+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
 
     def keepLineName(self, target, label):
         # remember the name of a measurement about to be replaced, to offer it again
@@ -3149,6 +3155,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     #[length, range, LHX, LHY,LTX,LTY, RHX, RHY,RTX,RTY,plhx, plhy, plhz,pltx,plty, pltz]
                     if self.measureBtn.isChecked():
                         if self.pairedTarget:
+                            self.deleteLine(self.currentTarget, self.measurementBox.currentText())
                             Length = str(self.targetStereoData[0])
                             Error = str(self.targetStereoData[2])
                             LHX = str(self.targetStereoData[3])
@@ -3204,12 +3211,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             
                             lineObjs=self.gvRight.addDimensionLine(stPoint,endPoint, taillength=self.guiSettings['MeasureLineTailLength'],
                             thickness=self.guiSettings['MeasureLineWidth'],  color=self.guiSettings['TargetLineColor'])
-                            self.lineMarks.update({lineObjs:[self.currentTarget,  self.gvRight]})
+                            self.lineMarks.update({lineObjs:[self.currentTarget,  self.gvRight, self.measurementBox.currentText()]})
                             self.activeLine[ self.gvRight] = lineObjs
                         else:
                             lineObjs=self.gvLeft.addDimensionLine(stPoint,endPoint, taillength=self.guiSettings['MeasureLineTailLength'],
                             thickness=self.guiSettings['MeasureLineWidth'],  color=self.guiSettings['TargetLineColor'])
-                            self.lineMarks.update({lineObjs:[self.currentTarget,  self.gvLeft]})
+                            self.lineMarks.update({lineObjs:[self.currentTarget,  self.gvLeft, self.measurementBox.currentText()]})
                             self.activeLine[ self.gvLeft] = lineObjs
                         self.rubberBanding=False
                         # stereo triangulation
@@ -3253,6 +3260,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         #[length, range, LHX, LHY,LTX,LTY, RHX, RHY,RTX,RTY,plhx, plhy, plhz,pltx,plty, pltz]
                         if self.measureBtn.isChecked():
                             if self.pairedTarget:
+                                self.deleteLine(self.currentTarget, self.measurementBox.currentText())
                                 Length = str(self.targetStereoData[0])
                                 Error = str(self.targetStereoData[2])
                                 LHX = str(self.targetStereoData[3])
@@ -3351,12 +3359,25 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             QMessageBox.warning(self, "ERROR", "This frame number isn't in the image folder.")
             return
 
+    def frameLocked(self):
+        '''
+        frameLocked says whether the frame can't change now: while a measurement is being drawn the frame stays, and
+        the status bar says so.
+        '''
+        if self.measureBtn.isChecked():
+            self.statusBar.showMessage('Finish the measurement, or press Esc, before changing frame.', 4000)
+            return True
+        return False
+
     def changeFrame(self, frameIndex):
         '''
-        changeFrame shows the frame at the given slider position. While recording, the data of
-        the frame being left is saved first, as when stepping with the arrow keys.
+        changeFrame shows the frame at the given slider position, unless a measurement is being drawn (frameLocked).
+        Every way of changing frame comes here: the arrow keys and buttons, the Frame box, the Measurements panel.
+        While recording, the data of the frame being left is saved first, as when stepping with the arrow keys.
         '''
         if frameIndex==self.imageSlider.value():
+            return
+        if self.frameLocked():
             return
         if self.recordBtn.isChecked():
             self.writeFrameData()
@@ -3412,9 +3433,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         stepFrame goes one frame (oneFrame) or one sample step forward (direction 1) or back (-1). The Left and Right
         keys and the navigation buttons all come here.
         '''
-        if self.measureBtn.isChecked():
-            self.statusBar.showMessage('Finish the measurement, or press Esc, before changing frame.', 4000)
-            return# dont advance frame while measurements are taking place
         frameIndex=self.imageSlider.value()
         try:
             sampleRate = float(self.sampleRateEdit.text())
@@ -3429,9 +3447,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         if oneFrame:
             targetIndex=frameIndex + direction
         else:
-            #  one sample step
-            targetIndex=int(round((float(frameIndex + direction*sampleRate-offset)) /
-                            float(sampleRate)) * sampleRate)+offset
+            #  one sample step: the next frame of the grid (offset + k*step) after this one, or the one before it,
+            #  also when the frame on screen is between two of them
+            steps=(frameIndex-offset)/float(sampleRate)
+            if direction>0:
+                k=floor(steps)+1
+            else:
+                k=ceil(steps)-1
+            targetIndex=int(round(offset+k*sampleRate))
         #  goToIndex keeps the index inside the slider: the first frame (index 0) is reached by stepping as by the First button
         self.goToIndex(targetIndex)
 
@@ -3443,8 +3466,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         '''
         if self.noLoad:
             return
-        if self.measureBtn.isChecked():
-            self.statusBar.showMessage('Finish the measurement, or press Esc, before changing frame.', 4000)
+        if self.frameLocked():
             return
         targetIndex=int(targetIndex)
         #  clamp the image numbers to a valid range
@@ -3467,6 +3489,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.measurementsDock.refresh()
     
     def changeSelectionFromTable(self, frame, target, zoom=None):
+        if self.frameLocked():
+            # neither the frame nor the selected marks change while a measurement is being drawn
+            return
         frameIndex=self.leftImageFrames.index(frame)
         self.changeFrame(frameIndex)
         self.selectValueFromTable(frame, target, zoom)
@@ -3633,34 +3658,16 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
                     # find line marks
             t=self.currentTarget
-            query = self.dataDB.dbQuery("SELECT target_number FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
-            target_number, = query.first()
-            if target_number!=None:
-                # clear out current length measurements
-                self.keepLineName(self.currentTarget, self.measurementBox.currentText())
-                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND line_label='"+self.measurementBox.currentText()+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                self.updateTimelineMarks()
-                # reload frame
-                            # get the zoom state
-                if self.activeMark[self.gvLeft]:
-                    lPoint=self.activeMark[self.gvLeft].mapToScene(self.activeMark[self.gvLeft].boundingRect().center())
-                else:
-                    lPoint=None
-                if self.activeMark[self.gvRight]:
-                    rPoint=self.activeMark[self.gvRight].mapToScene(self.activeMark[self.gvRight].boundingRect().center())
-                else:
-                    rPoint=None
-
-                lZoom=self.gvLeft.zoomLevel
-                rZoom=self.gvRight.zoomLevel
-
-                # find the pair
-                self.__changeImage()
-                # zoom back
-                if lPoint!=None:
-                    self.gvLeft.zoomToPoint(lPoint, lZoom)
-                if rPoint!=None:
-                    self.gvRight.zoomToPoint(rPoint, rZoom)
+            label=self.measurementBox.currentText()
+            # the old line of this measurement leaves the images now, but the data only when the new one is saved
+            # (deleteLine): Esc keeps it, as the frame is drawn again from the data
+            for lineObj, descriptor in list(self.lineMarks.items()):
+                if descriptor[0]==t and descriptor[2]==label:
+                    del self.lineMarks[lineObj]
+                    descriptor[1].removeItem(lineObj)
+            # and so does a line left half drawn by a measurement that was cancelled
+            self.activeLine[self.gvLeft]=None
+            self.activeLine[self.gvRight]=None
             # first time measurement
             self.measureBtn.setChecked(True)
             self.pairedTarget=True
@@ -3670,7 +3677,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if j[0]==self.currentTarget and i !=None:
                     i.setSelected(True)
                     self.activeMark[j[1]]=i
-                    self.__selectedItems.append(i)
+                    if i not in self.__selectedItems:
+                        self.__selectedItems.append(i)
 #                    groupItems.append(i)
 #            for i in groupItems:
 #                if i in self.lineMarks:
@@ -3837,7 +3845,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         continue
                     lineObjs[imageObj]=imageObj.addDimensionLine(QPointF(float(x1), float(y1)), QPointF(float(x2), float(y2)), taillength=self.guiSettings['MeasureLineTailLength'],
                             thickness=self.guiSettings['MeasureLineWidth'], color=self.guiSettings['TargetLineColor'], alpha=alpha)
-                    self.lineMarks.update({lineObjs[imageObj]:[target, imageObj]})
+                    self.lineMarks.update({lineObjs[imageObj]:[target, imageObj, line_label]})
                 if self.gvLeft in lineObjs:
                     text=line_label[0:3]+" = "+str(round(float(Length), 2))+" e = "+str(round(float(Error), 2))
                     if name:
@@ -3994,7 +4002,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             targetToDelete.append(target_number)
                             continue
                         lineObjsL=self.gvLeft.addDimensionLine(stPoint,endPoint, taillength=self.guiSettings['MeasureLineTailLength'], thickness=self.guiSettings['MeasureLineWidth'],  color=col)
-                        self.lineMarks.update({lineObjsL:[int(target_number),  self.gvLeft]})
+                        self.lineMarks.update({lineObjsL:[int(target_number),  self.gvLeft, line_label]})
                         # right image
                         stPoint=QPointF(float(RX1), float(RY1))
                         endPoint=QPointF(float(RX2), float(RY2))
@@ -4003,7 +4011,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             targetToDelete.append(target_number)
                             continue
                         lineObjs=self.gvRight.addDimensionLine(stPoint,endPoint, taillength=self.guiSettings['MeasureLineTailLength'], thickness=self.guiSettings['MeasureLineWidth'], color=col)
-                        self.lineMarks.update({lineObjs:[int(target_number),  self.gvRight]})
+                        self.lineMarks.update({lineObjs:[int(target_number),  self.gvRight, line_label]})
                         lineObjsL.addLabel(QPointF(float(LX1), float(LY1)),line_label[0:3]+" = "+str(round(float(Length), 2))+" e = "+str(round(float(Error), 2)), color=col,  size=self.guiSettings['LabelTextSize'])
                         if not self.labelCheck.isChecked():
                             lineObjsL.hideLabels(None)

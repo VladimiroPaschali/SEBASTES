@@ -184,7 +184,7 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
 2. Select the project.
 3. The first time you open a deployment, select its profile. SEBASTES remembers the profile for that deployment.
 4. Move through the frames with the bar under the images. The timeline is its top row: the ticks on it mark the frames that have a measurement (tall ticks) and the frames that have targets only (short ticks). The second row has the buttons, which do the same as the keys, the frame number (with the time in the video, `hours:minutes:seconds.hundredths`, for videos) and the sample interval and speed (**Every ... frames, offset ...**, **Speed**). In a narrow window the bar gives up the speed slider (the speed stays in its box), the time, the offset and then the sample interval; while recording, when there is no room for both, the speed goes before the sample interval:
-   - **Right / Left arrow**, or the `<<` and `>>` buttons: move by the number of frames set in **Every ... frames**.
+   - **Right / Left arrow**, or the `<<` and `>>` buttons: go to the next or the previous frame of the sample, the frames that are a multiple of **Every ... frames** plus the offset. From a frame that is not in the sample, Right goes to the first sample frame after it and Left to the last one before it.
    - **Ctrl + Right / Left**, or the `|<` and `>|` buttons next to Play: move one frame.
    - The buttons at the ends of the row go to the first frame (frame 0 of a video, the first image of a folder) and to the last frame; the last button goes to the last frame that has data (Record only). The arrow keys stop at the same first and last frames.
    - You can also use the slider, or type a frame number in the frame box.
@@ -216,7 +216,7 @@ Outside Record the marks and measurements of each frame are still shown, read on
 
 - **Plain click** in the left image: marks the fish in that image only. Use it to count fish. These marks cannot be measured.
 - **Right-click** a mark to select its target. **Delete** removes the selected target.
-- To measure an existing stereo target again, or another measurement such as `width`, select it, choose the measurement and press **Measure Target**, then drag the line in the left image and in the right image. With **Auto Match** ticked, SEBASTES draws the second line for you.
+- To measure an existing stereo target again, or another measurement such as `width`, select it, choose the measurement and press **Measure Target**, then drag the line in the left image and in the right image. With **Auto Match** ticked, SEBASTES draws the second line for you. The old line is replaced only when the new one is saved: **Esc** keeps it. The frame can't be changed (arrow keys, buttons, the frame box or the Measurements panel) while a line is being drawn.
 
 In mono mode clicks are not guided. Without a calibration they are not guided either, and only plain clicks can be used.
 
