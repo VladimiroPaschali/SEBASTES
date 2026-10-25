@@ -287,6 +287,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             #obj.panKey = None
             obj.rubberBandKey=None
             obj.image.keepEnhanced=True
+            # no scroll bars: Alt+drag pans a zoomed image and zooming centres on the mark, so the empty tracks only take room
+            obj.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            obj.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # the welcome page opens a deployment, from its button or from the list of the last ones
         self.welcomePage.openRequested.connect(self.actionLoad.trigger)
         self.welcomePage.recentRequested.connect(self.loadDeployment)
