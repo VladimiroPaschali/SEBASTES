@@ -194,12 +194,17 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.speciesKeys=[]
         for number in range(1, 10):
             key=QShortcut(QKeySequence(str(number)), self)
+            key.setAutoRepeat(False)
             key.activated.connect(lambda number=number: self.selectSpeciesByKey(number))
             self.speciesKeys.append(key)
         # Space plays and pauses. It is a QShortcut and not the shortcut of the button: QAbstractButton.setText replaces the
         # shortcut of a button (with its mnemonic), and the text of Play changes. A disabled Play must not take the key.
         self.playKey=QShortcut(QKeySequence(Qt.Key.Key_Space), self)
+        self.playKey.setAutoRepeat(False)
         self.playKey.activated.connect(self.playBtn.click)
+        # a key that is held down must not toggle again and again: the single-key actions and the ones that open a window act once
+        for action in [self.recordBtn, self.measureBtn, self.labelCheck, self.actionLoad, self.actionShortcuts]:
+            action.setAutoRepeat(False)
         self.playKey.setEnabled(self.playBtn.isEnabled())
         self.playBtn.installEventFilter(self)
         
@@ -1452,6 +1457,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.deployment=None
         self.activeProfile=None
         self.noLoad=True
+        self.annotationFocus=None
+        self.measurementsDock.setDeployment(None, None)
         self.recordBtn.setChecked(False)
         self.recordBtn.setEnabled(False)
         self.playBtn.setEnabled(False)
@@ -1545,7 +1552,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.dataPath = dataPath
         self.activeProject = project
         self.projectDict = projectDict
-        if self.openDeployment(profile, newProfile):
+        try:
+            opened = self.openDeployment(profile, newProfile)
+        except Exception:
+            # e.g. a data database that is empty or locked: the previous deployment is closed already, so go back to the welcome page
+            self.showError()
+            opened = False
+        if opened:
             self.addRecentDeployment(deploymentPath)
         else:
             self.unloadDeployment()
@@ -1900,7 +1913,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.__changeImage()
             else:
                 self.imageSlider.setValue(self.imageSlider.minimum())
-            self.playBtn.setEnabled(True)
+            # Play is for viewing: while recording the frames change only by hand, which saves the data of each
+            self.playBtn.setEnabled(not self.recordBtn.isChecked())
             self.measurementsDock.setDeployment(self.dataDB, self.deployment)
             if self.measurementsDock.isHidden():
                 self.measurementsDock.show()
@@ -2068,6 +2082,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         adjusting brightness, gamma, or contrast or by moving the image
         slider.
         '''
+        if self.noLoad:
+            # no deployment (an old row of the Measurements panel, a slider that is still moving): there are no images to read
+            return
         try:
             #  tell the fetchers to send us an new/adjusted image
             if self.recordBtn.isChecked():
@@ -2295,6 +2312,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.key=ev.key()
 
         if ev.key() == 65:
+            if ev.isAutoRepeat():
+                # a held key toggles once
+                return
             if self.computeMatchBox.isChecked():
                 self.computeMatchBox.setChecked(False)
             else:
@@ -2306,8 +2326,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
 
         elif (ev.key() == Qt.Key_Home):
-            self.linkBtn.setChecked(True)
-            self.toggleLink()
+            # linking targets is part of recording: outside Record the marks are read only
+            if self.recordBtn.isChecked():
+                self.linkBtn.setChecked(True)
+                self.toggleLink()
 
         # navigate though images
         elif ev.key() in [ Qt.Key_Right, Qt.Key_Left]:
@@ -2350,8 +2372,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.pairPoints=[]
         
         elif (ev.key() == Qt.Key_Z):
-            # this is to quick undo auto targets only
-            if self.computeMatchBox.isChecked():
+            # this is to quick undo auto targets only (and only while recording: outside Record the marks are read only)
+            if self.recordBtn.isChecked() and self.computeMatchBox.isChecked():
                 # remove current mark and delete from db
                 self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameText()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameText()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
@@ -2499,7 +2521,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 # if we have checked link button, put in th elink
                 # clear link display
 
-                if len(self.linkData)>0:
+                if len(self.linkData)>0 and self.recordBtn.isChecked():
                     self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
                     " WHERE frame_number = "+self.frameText()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                     self.linkData=[]
@@ -2687,6 +2709,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                             self.activeMark[self.gvLeft].hideLabels(None)
                                         if self.showDataCheck.isChecked():
                                             self.datadlg.refreshView()
+                                        # the frame has a target now (the end of this handler, where the other paths do this, is skipped)
+                                        self.updateTimelineMarks()
+                                        self.incrementCounters()
                                         self.startFishTail()
                                         return
 
@@ -3497,6 +3522,18 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             QMessageBox.warning(self, "ERROR", "Please load a deployment.")
             self.recordBtn.setChecked(False)
             return
+        # whatever was half done does not carry over to the other mode (or to another frame): a pair of points, a fish being marked,
+        # lines being drawn, a target link, the target that was selected
+        self.pairPoints=[]
+        self.fishStep=0
+        self.fishLines={}
+        self.activeLine[self.gvLeft]=None
+        self.activeLine[self.gvRight]=None
+        self.linkData=[]
+        self.linkBtn.setChecked(False)
+        self.measureBtn.setChecked(False)
+        self.currentTarget=0
+        self.pairedTarget=False
         if self.recordBtn.isChecked():
             self.stopPlay()
             self.imageSlider.setEnabled(False)
@@ -3543,6 +3580,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             for widget in self.recordEnableWidgets:
                 widget.setEnabled(False)
             self.showTools(self.recordOnlyWidgets, False)
+        # the guide and the hints were worked out (by the toggled signal of Record) before the state above was reset
+        self.updateFishGuide()
+        self.updateEpipolar()
         self.resizeEvent(None)
 
 
@@ -3812,6 +3852,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         showMeasurement goes to the frame of a row clicked in the Measurements panel and shows its
         fish: selected while recording, otherwise drawn over the faded other fish of the frame.
         '''
+        if self.noLoad:
+            return
         self.annotationFocus=(frame, target)
         if not self.recordBtn.isChecked() and self.leftImageFrames[self.imageSlider.value()]==frame:
             # same frame: the slider doesn't move, redraw here

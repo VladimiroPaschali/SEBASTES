@@ -77,6 +77,8 @@ class MeasurementsDock(QDockWidget):
         refresh reloads the measurements from the data database.
         '''
         if self.dataDB is None:
+            #  no deployment: nothing to show
+            self.table.setRowCount(0)
             return
         self.filling = True
         self.table.setSortingEnabled(False)
