@@ -1679,11 +1679,11 @@ class QViewerBase(QGraphicsView):
         pen = QPen(penColor)
         pen.setWidthF(width)
         if style.lower() == '-':
-            pen.setStyle(Qt.PenShape.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
         elif style.lower() == '.':
-            pen.setStyle(Qt.PenShape.DotLine)
+            pen.setStyle(Qt.PenStyle.DotLine)
         else:
-            pen.setStyle(Qt.PenShape.SolidLine)
+            pen.setStyle(Qt.PenStyle.SolidLine)
 
         return pen
 

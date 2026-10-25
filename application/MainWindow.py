@@ -4511,7 +4511,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             for spc in spc_list:
                 self.speciesInGrid.add(spc)
             # update species list if user added more counts
-            self.dataDB.dbExec("UPDATE FRAME_METADATA SET metadata_value = '"+";".join(self.speciesInGrid)+"' WHERE frame_number="+self.frameBox.text()+\
+            self.dataDB.dbExec("UPDATE FRAME_METADATA SET metadata_value = '"+sqlQuote(";".join(self.speciesInGrid))+"' WHERE frame_number="+self.frameText()+\
             " AND metadata_group = 'CountingGridInformation'"+
              "AND metadata_type='SpeciesInGrid' AND metadata_tag='"+str(self.gridCount)+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
         else: # new grid, need to write everything
@@ -4519,8 +4519,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameText()+",'CountingGridInformation','"+str(self.gridCount)+"','GridSize','"+
                                 self.gridSetup['GridSize']+"','"+sqlQuote(self.annotator)+"')")
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','SpeciesInGrid','"+
-                                ";".join(self.speciesInGrid)+"','"+sqlQuote(self.annotator)+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameText()+",'CountingGridInformation','"+str(self.gridCount)+"','SpeciesInGrid','"+
+                                sqlQuote(";".join(self.speciesInGrid))+"','"+sqlQuote(self.annotator)+"')")
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
                                 " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameText()+",'CountingGridInformation','"+str(self.gridCount)+"','RandomCell','"+
                                 str(self.randomCell)+"','"+sqlQuote(self.annotator)+"')")

@@ -100,7 +100,7 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
 #            speciesList.append(query.value(0))
         dlg.setList(self.speciesList)
         if dlg.exec_():
-            QtSql.QSqlQuery("UPDATE targets SET species_group='"+dlg.listWidget.currentItem().text()+
+            QtSql.QSqlQuery("UPDATE targets SET species_group='"+sqlQuote(dlg.listWidget.currentItem().text())+
             "' WHERE frame_number="+str(frame_number)+" AND target_number="+str(target_number)+ " AND deployment_id='"+sqlQuote(self.deployment)+"'" , self.db)
         self.refreshView(False)
         
