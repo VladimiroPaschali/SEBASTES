@@ -22,7 +22,7 @@ import bisect
 import random
 import sqlite3
 from datetime import datetime,  timezone
-from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg
+from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg, shortcutsdlg
 from exif import Image
 
 #  The version of the layout of the window that closeEvent saves with the geometry and the places of the docks. Raise it when
@@ -194,6 +194,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             key=QShortcut(QKeySequence(str(number)), self)
             key.activated.connect(lambda number=number: self.selectSpeciesByKey(number))
             self.speciesKeys.append(key)
+        # Space plays and pauses. It is a QShortcut and not the shortcut of the button: QAbstractButton.setText replaces the
+        # shortcut of a button (with its mnemonic), and the text of Play changes. A disabled Play must not take the key.
+        self.playKey=QShortcut(QKeySequence(Qt.Key.Key_Space), self)
+        self.playKey.activated.connect(self.playBtn.click)
+        self.playKey.setEnabled(self.playBtn.isEnabled())
+        self.playBtn.installEventFilter(self)
         
         self.recomputeBtn.triggered.connect(self.recompute3D)
         self.recordBtn.triggered.connect(self.toggleRecord)
@@ -209,6 +215,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.editSpeciesBtn.triggered.connect(self.editSpecies)
         self.actionMatchThreshold.triggered.connect(self.setMatchThreshold)
         self.actionAbout.triggered.connect(self.showAbout)
+        self.actionShortcuts.triggered.connect(self.showShortcuts)
         self.lastFrameBtn.clicked.connect(self.goToLastFrame)
         # the navigation buttons do what the arrow keys do
         self.firstBtn.clicked.connect(lambda: self.goToIndex(self.imageSlider.minimum()))
@@ -609,7 +616,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 (self.measureBtn, 'measure'), (self.linkBtn, 'link'), (self.delLinkBtn, 'unlink'), (self.editSpeciesBtn, 'species'),
                 (self.targetCommentBtn, 'target-comment'), (self.frameCommentBtn, 'frame-comment'), (self.computeMatchBox, 'auto-match'),
                 (self.recomputeBtn, 'recompute'), (self.trainBtn, 'training-set'), (self.clearGridBtn, 'delete'),
-                (self.monoRadio, 'mono'), (self.stereoRadio, 'stereo'), (self.epipolarCheck, 'epipolar'),
+                (self.monoRadio, 'mono'), (self.stereoRadio, 'stereo'), (self.epipolarCheck, 'epipolar'), (self.actionShortcuts, 'keyboard'),
                 (self.speciesDockWidget.toggleViewAction(), 'species'), (self.metadataDockWidget.toggleViewAction(), 'metadata'),
                 (self.measurementsDock.toggleViewAction(), 'measurements')]:
             action.setIcon(icon(name))
@@ -667,6 +674,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the sample and speed controls give way when the navigation bar gets narrow
         if obj is self.navBar and event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
             self.fitNavBar()
+        elif obj is self.playBtn and event.type()==QEvent.Type.EnabledChange:
+            self.playKey.setEnabled(self.playBtn.isEnabled())
         return QMainWindow.eventFilter(self, obj, event)
 
     def fitNavBar(self):
@@ -978,6 +987,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 other.setChecked(False)
         btn.setChecked(not btn.isChecked())
         self.incrementCounters()
+
+    def showShortcuts(self):
+        shortcutsdlg.ShortcutsDlg(self).exec()
 
     ######################1. SETUP FUNCTIONS################################
     

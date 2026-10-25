@@ -373,7 +373,7 @@
             <size><width>16</width><height>16</height></size>
            </property>
            <property name="toolTip">
-            <string>Play or pause</string>
+            <string>Play or pause (Space)</string>
            </property>
            <property name="text">
             <string>Play</string>
@@ -800,6 +800,7 @@
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionShortcuts"/>
     <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuFile"/>
@@ -2035,7 +2036,7 @@ frame</string>
     <string>Open</string>
    </property>
    <property name="toolTip">
-    <string>Open a deployment folder</string>
+    <string>Open a deployment folder (Ctrl+O)</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
@@ -2118,6 +2119,17 @@ frame</string>
     <string>About this program</string>
    </property>
   </action>
+  <action name="actionShortcuts">
+   <property name="text">
+    <string>Keyboard Shortcuts…</string>
+   </property>
+   <property name="toolTip">
+    <string>List the keyboard shortcuts and mouse gestures (F1)</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
   <action name="copyBtn">
    <property name="text">
     <string>Copy Images To…</string>
@@ -2143,7 +2155,10 @@ frame</string>
     <string>Labels</string>
    </property>
    <property name="toolTip">
-    <string>Show or hide the labels of the marks and measurements</string>
+    <string>Show or hide the labels of the marks and measurements (L)</string>
+   </property>
+   <property name="shortcut">
+    <string>L</string>
    </property>
   </action>
   <action name="showDataCheck">
@@ -2210,7 +2225,10 @@ frame</string>
     <string>Record</string>
    </property>
    <property name="toolTip">
-    <string>Record: mark and measure fish. Stop recording to review the annotations</string>
+    <string>Record: mark and measure fish. Stop recording to review the annotations (R)</string>
+   </property>
+   <property name="shortcut">
+    <string>R</string>
    </property>
   </action>
   <action name="measureBtn">
@@ -2224,7 +2242,10 @@ frame</string>
     <string>Measure</string>
    </property>
    <property name="toolTip">
-    <string>Draw the length of the selected target in both images</string>
+    <string>Draw the length of the selected target in both images (M)</string>
+   </property>
+   <property name="shortcut">
+    <string>M</string>
    </property>
   </action>
   <action name="linkBtn">

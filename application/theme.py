@@ -167,6 +167,11 @@ QLabel#measureChip[level="ok"] { background: $successBg; color: $success; }
 QLabel#measureChip[level="warn"] { background: $warningBg; color: $warning; }
 QLabel#measureChip[level="bad"] { background: $errorBg; color: $error; }
 
+/* the keyboard shortcuts window (dialogs/shortcutsdlg.py) */
+QLabel#keyCap { background: $surface; color: $text; border: 1px solid $border; border-bottom-width: 2px;
+                border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+QLabel#shortcutGroup { color: $textMuted; font-weight: 600; padding-top: 4px; }
+
 QFrame#navBar { background: $surface; border: none; border-top: 1px solid $border; }
 
 QSlider#imageSlider::groove:horizontal { height: 4px; background: $border; border-radius: 2px; }
