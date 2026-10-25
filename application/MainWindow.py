@@ -7,7 +7,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from ui import ui_SEBASTES_dockable
-import pyStereoComp, dbConnection, videoSource, measurementsdock, theme
+import pyStereoComp, dbConnection, videoSource, measurementsdock, theme, epipolar
 from dbConnection import sqlQuote
 import numpy as ny
 import cv2
@@ -150,6 +150,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.fishHead = None
         self.fishHeadMarks = None
         self.fishLines = {}
+        # the epipolar curves drawn in each image while a stereo pair is half done (updateEpipolar)
+        self.epipolarItems = {self.gvLeft:[], self.gvRight:[]}
         self.previousLineName = None
         # (frame, target) chosen in the Measurements panel, shown over the other fish when not recording
         self.annotationFocus = None
@@ -243,6 +245,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the guided fish marking follows these buttons
         for btn in [self.recordBtn, self.measureBtn, self.trainBtn, self.stereoRadio]:
             btn.toggled.connect(self.updateFishGuide)
+        for btn in [self.recordBtn, self.stereoRadio]:
+            btn.toggled.connect(self.updateEpipolar)
         # while recording nothing plays: the speed gives way to the sample step in a narrow navigation bar
         self.recordBtn.toggled.connect(self.fitNavBar)
 
@@ -296,6 +300,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         #  restore the application state
         self.appSettings = QSettings('afsc.noaa.gov', 'Sebastes')
+        # View > Epipolar Hints is remembered
+        self.epipolarCheck.setChecked(strtobool(self.appSettings.value('epipolarhints', 'true')))
+        self.epipolarCheck.toggled.connect(self.epipolarToggled)
         #  The window geometry and the places of the docks are saved when SEBASTES closes (closeEvent), together with
         #  LAYOUT_VERSION: a layout saved by a version of the window that is laid out differently is ignored.
         self.layoutRestored=False
@@ -586,7 +593,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 (self.measureBtn, 'measure'), (self.linkBtn, 'link'), (self.delLinkBtn, 'unlink'), (self.editSpeciesBtn, 'species'),
                 (self.targetCommentBtn, 'target-comment'), (self.frameCommentBtn, 'frame-comment'), (self.computeMatchBox, 'auto-match'),
                 (self.recomputeBtn, 'recompute'), (self.trainBtn, 'training-set'), (self.clearGridBtn, 'delete'),
-                (self.monoRadio, 'mono'), (self.stereoRadio, 'stereo'),
+                (self.monoRadio, 'mono'), (self.stereoRadio, 'stereo'), (self.epipolarCheck, 'epipolar'),
                 (self.speciesDockWidget.toggleViewAction(), 'species'), (self.metadataDockWidget.toggleViewAction(), 'metadata'),
                 (self.measurementsDock.toggleViewAction(), 'measurements')]:
             action.setIcon(icon(name))
@@ -600,6 +607,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playBtn.setStyleSheet(theme.playButtonStyle())
         colors=theme.colors()
         self.imageSlider.setMarkColors(colors['warning'], colors['text'], colors['surface'])
+        # the epipolar curves are in the accent colour
+        self.updateEpipolar()
         self.updatePlayButton()
         self.updateStatusMode()
 
@@ -777,6 +786,85 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             'assign species and frame metadata, and get 3D range and length by stereo triangulation.</p>'
             '<p>Developed by NOAA Fisheries employees Kresimir Williams and Rick Towler. Not an official government product.</p>')
 
+
+
+    ######################1b. HINTS, MEASUREMENT CHIP, SHORTCUTS################################
+
+    def epipolarEnabled(self):
+        '''
+        epipolarEnabled says whether the epipolar hints can be drawn: they are on in the View menu, a deployment is
+        recording in stereo and it has a calibration. (stereoAvailable is not used: it opens a message box.)
+        '''
+        return (self.epipolarCheck.isChecked() and not self.noLoad and self.recordBtn.isChecked() and self.stereoRadio.isChecked()
+                and getattr(self, 'mode', None)=='stereo' and bool(self.stereoComp.calData))
+
+    def epipolarToggled(self, checked):
+        self.appSettings.setValue('epipolarhints', 'true' if checked else 'false')
+        self.updateEpipolar()
+
+    def pendingStereoPoints(self):
+        '''
+        pendingStereoPoints returns (the image the points were clicked in, the points) for a stereo pair that is
+        waiting for the other image: the first point of a target, the tail of a fish in the left image, or the ends
+        of the line drawn in one image with Measure Target. None when no pair is half done.
+        '''
+        if len(self.pairPoints)==1:
+            imageObj, x, y=self.pairPoints[0]
+            return imageObj, [QPointF(x, y)]
+        if self.fishGuideActive() and self.fishStep==3 and self.gvLeft in self.fishLines:
+            # the line runs from the head to the tail
+            return self.gvLeft, [self.fishLines[self.gvLeft].p2()]
+        if self.measureBtn.isChecked():
+            drawn=[imageObj for imageObj in [self.gvLeft, self.gvRight] if self.activeLine[imageObj] is not None]
+            if len(drawn)==1:
+                line=self.activeLine[drawn[0]].getLine()
+                return drawn[0], [line.p1(), line.p2()]
+        return None
+
+    def clearEpipolar(self):
+        '''
+        clearEpipolar removes the epipolar curves from the images. The viewers drop them as well when the scene is
+        cleared (removeAllItems) or rebuilt, so an item can be gone already: that is not an error.
+        '''
+        for imageObj, items in self.epipolarItems.items():
+            for item in items:
+                try:
+                    imageObj.removeItem(item)
+                except RuntimeError:
+                    pass
+            items[:]=[]
+
+    def updateEpipolar(self, *args):
+        '''
+        updateEpipolar draws, in the image that waits for the second point of a stereo pair, the epipolar curve of the
+        first point; with no pair half done it removes the curves. It is called after every click, so the curve
+        appears with the first point and goes with the pair.
+        '''
+        self.clearEpipolar()
+        if not self.epipolarEnabled():
+            return
+        try:
+            pending=self.pendingStereoPoints()
+            if pending is not None:
+                self.showEpipolar(*pending)
+        except Exception:
+            # the hints are a help: never let them stop the marking
+            traceback.print_exc()
+
+    def showEpipolar(self, imageObj, points):
+        '''
+        showEpipolar draws in the other image the curve on which the match of each point (clicked in imageObj) must lie.
+        '''
+        otherObj=self.gvRight if imageObj is self.gvLeft else self.gvLeft
+        size=(otherObj.imgPixmap.width(), otherObj.imgPixmap.height())
+        color=QColor(theme.colors()['accentSoft'])
+        for point in points:
+            curve=epipolar.epipolarCurve(self.stereoComp.calData, (point.x(), point.y()), 'L' if imageObj is self.gvLeft else 'R',
+                                         size if size[0]>0 else None)
+            item=otherObj.addCurve(curve, color=[color.red(), color.green(), color.blue()], thickness=1.5, linestyle='-')
+            if item is not None:
+                self.epipolarItems[otherObj].append(item)
+        otherObj.viewport().update()
 
     ######################1. SETUP FUNCTIONS################################
     
@@ -2222,6 +2310,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
 
     def imageClick(self, imageObj, clickLoc, button, currentKbKey, item):
+        # whatever the click did (the handler has many ways out), the epipolar hints show the pair it left half done
+        try:
+            self.handleImageClick(imageObj, clickLoc, button, currentKbKey, item)
+        finally:
+            self.updateEpipolar()
+
+    def handleImageClick(self, imageObj, clickLoc, button, currentKbKey, item):
         # selection code
         if button==Qt.MouseButton.RightButton:
             # first deselect everything
@@ -2813,6 +2908,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.separateLabels(mark, line)
 
     def imageUnClick(self, imageObj, clickLoc, button, modifier):
+        # a line drawn in one image with Measure Target gets its hints in the other one
+        try:
+            self.handleImageRelease(imageObj, clickLoc, button, modifier)
+        finally:
+            self.updateEpipolar()
+
+    def handleImageRelease(self, imageObj, clickLoc, button, modifier):
 
         if self.rubberBanding:
             if self.makeBoxes:
@@ -3796,6 +3898,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
 
     def clearMarks(self):
+        self.clearEpipolar()
         self.gvLeft.removeAllItems()
         self.gvRight.removeAllItems()
         self.lineMarks={}

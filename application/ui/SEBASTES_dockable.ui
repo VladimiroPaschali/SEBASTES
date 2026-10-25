@@ -760,6 +760,7 @@
     <addaction name="showDataCheck"/>
     <addaction name="closeupCheck"/>
     <addaction name="gridCheck"/>
+    <addaction name="epipolarCheck"/>
    </widget>
    <widget class="QMenu" name="menuAnnotate">
     <property name="title">
@@ -2182,6 +2183,23 @@ frame</string>
    </property>
    <property name="toolTip">
     <string>Draw a counting grid over the image</string>
+   </property>
+  </action>
+  <action name="epipolarCheck">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Epipolar Hints</string>
+   </property>
+   <property name="iconText">
+    <string>Epipolar</string>
+   </property>
+   <property name="toolTip">
+    <string>While marking a pair, draw the line of the other image where the matching point must lie</string>
    </property>
   </action>
   <action name="recordBtn">

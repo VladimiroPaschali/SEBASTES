@@ -131,6 +131,12 @@ from .QIVPolygon import QIVPolygon
 from .QIVPolygonItem import QIVPolygonItem
 from .QIVGrid import QIVGrid
 
+#  The stacking order of the items of a scene: the image at the bottom, then curves (addCurve), then the marks, lines
+#  and boxes, which keep the default 0.
+IMAGE_Z = -10
+CURVE_Z = -5
+
+
 class QViewerBase(QGraphicsView):
 
     #  define PyQt Signals
@@ -291,6 +297,7 @@ class QViewerBase(QGraphicsView):
 
         #  add the pixmap to the scene and get the reference to the QGraphicsPixmapItem
         self.imgPixmapItem = self.scene.addPixmap(self.imgPixmap)
+        self.imgPixmapItem.setZValue(IMAGE_Z)
 
         #  set our scene...
         self.setScene(self.scene)
@@ -746,6 +753,38 @@ class QViewerBase(QGraphicsView):
 
 
 
+    def addCurve(self, points, color=[220,0,0], thickness=1.5, alpha=255, linestyle='-', name='QIVCurve'):
+        """
+        Adds a line through the provided points (a list or an array of x, y pairs in image coordinates)
+        that is drawn above the image and below the marks. The curve can't be selected and doesn't take
+        mouse clicks. Its pen is cosmetic: thickness is in screen pixels at any zoom. linestyle is as in
+        startDimensionLine. Returns the item, or None when there are fewer than two points. Remove it with
+        removeItem, or with removeAllItems along with everything else.
+        """
+
+        if len(points) < 2:
+            return None
+        path = QPainterPath(QPointF(float(points[0][0]), float(points[0][1])))
+        for point in points[1:]:
+            path.lineTo(QPointF(float(point[0]), float(point[1])))
+        curve = QGraphicsPathItem(path)
+        pen = QPen(QColor(color[0], color[1], color[2], alpha))
+        pen.setWidthF(thickness)
+        pen.setCosmetic(True)
+        if linestyle == '-':
+            #  dashes in units of the pen width
+            pen.setDashPattern([5.0, 3.0])
+        elif linestyle == '.':
+            pen.setStyle(Qt.PenStyle.DotLine)
+        curve.setPen(pen)
+        curve.setZValue(CURVE_Z)
+        curve.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        curve.setData(0, name)
+        self.scene.addItem(curve)
+        self.sceneItems.append(curve)
+        return curve
+
+
     def addMark(self, position, style='+', color=[220,0,0], selectColor=[5,220,250],
                  size=1.0, thickness=1.0, selectThickness=2.0, alpha=255, name='QIVMarker',
                  selectable=True, movable=False, fill=None):
@@ -869,6 +908,7 @@ class QViewerBase(QGraphicsView):
 
             #  add our background pixmap back to the scene
             self.imgPixmapItem = self.scene.addPixmap(self.imgPixmap)
+            self.imgPixmapItem.setZValue(IMAGE_Z)
 
             #  clear the scene items list
             self.sceneItems = []
