@@ -138,14 +138,21 @@ def buildPalette(c):
 
 styleSheetTemplate = Template('''
 QToolBar { spacing: 2px; padding: 2px 4px; border: none; border-bottom: 1px solid $border; }
-QToolBar::separator { background: $border; width: 1px; height: 1px; margin: 5px 6px; }
-QToolBar QToolButton { padding: 4px 8px; border: 1px solid transparent; border-radius: 6px;
-                       background: transparent; color: $text; }
-QToolBar QToolButton:hover { background: $hover; }
-QToolBar QToolButton:pressed { background: $pressed; }
-QToolBar QToolButton:checked { background: $accentTint; border-color: $accentBorder; }
-QToolBar QToolButton:checked:hover { background: $accentTintHover; }
-QToolBar QToolButton:disabled { color: $textMuted; background: transparent; border-color: transparent; }
+QToolBar::separator { background: $border; width: 1px; height: 1px; margin: 5px 4px; }
+QToolBar QToolButton, QFrame#navBar QToolButton { padding: 4px 6px; border: 1px solid transparent;
+                       border-radius: 6px; background: transparent; color: $text; }
+QToolBar QToolButton:hover, QFrame#navBar QToolButton:hover { background: $hover; }
+QToolBar QToolButton:pressed, QFrame#navBar QToolButton:pressed { background: $pressed; }
+QToolBar QToolButton:checked, QFrame#navBar QToolButton:checked { background: $accentTint; border-color: $accentBorder; }
+QToolBar QToolButton:checked:hover, QFrame#navBar QToolButton:checked:hover { background: $accentTintHover; }
+QToolBar QToolButton:disabled, QFrame#navBar QToolButton:disabled { color: $textMuted; background: transparent; border-color: transparent; }
+
+/* two tool buttons side by side as one exclusive choice (property segment = first / last) */
+QToolBar QToolButton[segment] { border-color: $border; }
+QToolBar QToolButton[segment="first"] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+QToolBar QToolButton[segment="last"] { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+QToolBar QToolButton[segment]:checked { border-color: $accentBorder; }
+QToolBar QToolButton[segment]:disabled { border-color: $border; }
 
 QDockWidget::title { padding: 5px 8px; text-align: left; border-bottom: 1px solid $border; }
 
