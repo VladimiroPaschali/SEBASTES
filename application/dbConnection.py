@@ -37,6 +37,14 @@ import logging
 from PySide6 import QtSql
 
 
+def sqlQuote(text):
+    '''
+    sqlQuote doubles the single quotes of a string that is put between single quotes in a SQL
+    statement built by hand, so that a name like Cala d'Oro doesn't end the string early.
+    '''
+    return text.replace("'", "''")
+
+
 class SQLError(Exception):
 
     def __init__(self, query):

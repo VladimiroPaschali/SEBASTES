@@ -17,7 +17,6 @@ class CommentDlg(QDialog, ui_commentDlg.Ui_commentDlg):
     @Slot()
     def saveandexit(self):
         self.comment=self.commentBox.toPlainText()
-        self.comment=self.comment.replace("'", "")
         self.close()
         
     def closeEvent(self, event):

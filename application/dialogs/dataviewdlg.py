@@ -5,6 +5,7 @@ from PySide6.QtWidgets import *
 from PySide6 import QtSql
 from dialogs.ui import  ui_DataviewDlg
 from dialogs import speciesgroupdlg
+from dbConnection import sqlQuote
 
 
 
@@ -61,13 +62,13 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
         
         
     def refreshView(self, scroll=True):
-        self.metadataModel.setQuery("SELECT FRAME_NUMBER,METADATA_GROUP,METADATA_TAG,METADATA_TYPE,METADATA_VALUE FROM frame_metadata WHERE deployment_id='"+self.deployment+"'", self.db)
+        self.metadataModel.setQuery("SELECT FRAME_NUMBER,METADATA_GROUP,METADATA_TAG,METADATA_TYPE,METADATA_VALUE FROM frame_metadata WHERE deployment_id='"+sqlQuote(self.deployment)+"'", self.db)
         self.metadataTable.reset()
         self.metadataTable.scrollToBottom()
-        self.frameModel.setQuery("SELECT FRAME_NUMBER, FRAME_TIME, COMMENT FROM frames WHERE deployment_id='"+self.deployment+"' ORDER BY frame_number", self.db)
+        self.frameModel.setQuery("SELECT FRAME_NUMBER, FRAME_TIME, COMMENT FROM frames WHERE deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number", self.db)
         self.frameTable.reset()
         self.frameTable.scrollToBottom()
-        self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE deployment_id='"+self.deployment+"' ORDER BY frame_number, target_number", self.db)
+        self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
         self.targetTable.reset()
         if scroll:
             self.targetTable.scrollToBottom()
@@ -76,12 +77,12 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
         if self.filterBtn.isChecked():
             dlg=speciesgroupdlg.SpeciesGroupDlg(self)
             speciesList=[]
-            query=QtSql.QSqlQuery("SELECT species_group FROM targets WHERE deployment_id='"+self.deployment+"' GROUP BY species_group ORDER BY species_group", self.db)
+            query=QtSql.QSqlQuery("SELECT species_group FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' GROUP BY species_group ORDER BY species_group", self.db)
             while query.next():
                 speciesList.append(query.value(0))
             dlg.setList(speciesList)
             if dlg.exec_():
-                self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE species_group='"+dlg.listWidget.currentItem().text()+"' AND deployment_id='"+self.deployment+"' ORDER BY frame_number, target_number", self.db)
+                self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE species_group='"+sqlQuote(dlg.listWidget.currentItem().text())+"' AND deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
                 self.targetTable.reset()
         else:
             self.refreshView()
@@ -100,7 +101,7 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
         dlg.setList(self.speciesList)
         if dlg.exec_():
             QtSql.QSqlQuery("UPDATE targets SET species_group='"+dlg.listWidget.currentItem().text()+
-            "' WHERE frame_number="+str(frame_number)+" AND target_number="+str(target_number)+ " AND deployment_id='"+self.deployment+"'" , self.db)
+            "' WHERE frame_number="+str(frame_number)+" AND target_number="+str(target_number)+ " AND deployment_id='"+sqlQuote(self.deployment)+"'" , self.db)
         self.refreshView(False)
         
     def keyPressEvent(self, ev):

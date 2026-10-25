@@ -4,6 +4,7 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from dialogs.ui import  ui_EditSpeciesDlg
 from datetime import datetime,  timezone
+from dbConnection import sqlQuote
 
 
 class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
@@ -21,7 +22,7 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
         speciesList=[]
         self.zoomLevelChange=0
         self.zoomLevel=0
-        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+self.deployment+"' GROUP BY species_group ORDER BY species_group")
+        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' GROUP BY species_group ORDER BY species_group")
         for species,  in query:
                 speciesList.append(species)
         self.currentFrame=None
@@ -34,7 +35,7 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
         self.fromSpeciesBox.setCurrentIndex(-1)
         self.fromSpeciesBox.currentIndexChanged.connect(self.getSpeciesTargets)
         #populate frame range boxes
-        query=self.dataDB.dbQuery("SELECT min(frame_number) as minfr,  max(frame_number) as maxfr FROM targets WHERE deployment_id='"+self.deployment+"' GROUP BY species_group ORDER BY species_group")
+        query=self.dataDB.dbQuery("SELECT min(frame_number) as minfr,  max(frame_number) as maxfr FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' GROUP BY species_group ORDER BY species_group")
         minfr, maxfr=query.first()
         self.startFrameEdit.setText(minfr)
         self.endFrameEdit.setText(maxfr)
@@ -63,8 +64,8 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
             QMessageBox.warning(self, "ERROR", "No more of this species is found in the data.")
         
     def getSpeciesTargets(self):
-        query=self.dataDB.dbQuery("SELECT frame_number, target_number FROM targets WHERE deployment_id='"+self.deployment+
-        "'  AND species_group='"+self.fromSpeciesBox.currentText()+"' AND frame_number between "+self.startFrameEdit.text()+" AND "+self.endFrameEdit.text()+
+        query=self.dataDB.dbQuery("SELECT frame_number, target_number FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+
+        "'  AND species_group='"+sqlQuote(self.fromSpeciesBox.currentText())+"' AND frame_number between "+self.startFrameEdit.text()+" AND "+self.endFrameEdit.text()+
         " ORDER BY frame_number, target_number")
         self.targetList=[]
         for frame,  target in query:
@@ -76,8 +77,8 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
         if self.currentFrame and self.currentTarget:
             if self.toSpeciesBox.currentIndex()>=0:
                 dt=datetime.now(timezone.utc)
-                self.dataDB.dbExec("UPDATE targets SET species_group='"+self.toSpeciesBox.currentText()+
-                    "', time_stamp='"+dt.strftime(self.timestamp_format)+"', annotator = '"+self.annotator+"' WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.currentFrame+" AND target_number="+self.currentTarget)
+                self.dataDB.dbExec("UPDATE targets SET species_group='"+sqlQuote(self.toSpeciesBox.currentText())+
+                    "', time_stamp='"+dt.strftime(self.timestamp_format)+"', annotator = '"+sqlQuote(self.annotator)+"' WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+self.currentFrame+" AND target_number="+self.currentTarget)
                 self.goToNextFish()
             else:
                 QMessageBox.warning(self, "ERROR", 'Select a "Change to" species.')
@@ -89,8 +90,8 @@ class EditSpeciesDlg(QDialog, ui_EditSpeciesDlg.Ui_editSpeciesDlg):
                 return
             else:
                 dt=datetime.now(timezone.utc)
-                self.dataDB.dbExec("UPDATE targets SET species_group='"+self.toSpeciesBox.currentText()+
-                    "' , time_stamp='"+dt.strftime(self.timestamp_format)+"', annotator = '"+self.annotator+"' WHERE deployment_id='"+self.deployment+"' AND species_group='"+self.fromSpeciesBox.currentText()+"'")
+                self.dataDB.dbExec("UPDATE targets SET species_group='"+sqlQuote(self.toSpeciesBox.currentText())+
+                    "' , time_stamp='"+dt.strftime(self.timestamp_format)+"', annotator = '"+sqlQuote(self.annotator)+"' WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND species_group='"+sqlQuote(self.fromSpeciesBox.currentText())+"'")
                 self.getSpeciesTargets()
         else:
             QMessageBox.warning(self, "ERROR", 'Select Speceis Options first!')

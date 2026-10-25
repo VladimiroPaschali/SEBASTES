@@ -3,6 +3,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from dialogs.ui import ui_commentDlg
+from dbConnection import sqlQuote
 
 class CommentDlg(QDialog, ui_commentDlg.Ui_commentDlg):
     def __init__(self,  parent=None):
@@ -20,7 +21,7 @@ class CommentDlg(QDialog, ui_commentDlg.Ui_commentDlg):
        
     def showComment(self, frame):
         self.frame=frame
-        query = self.dataDB.dbQuery("SELECT comment FROM frames WHERE frame_number = "+frame+" AND deployment_id='"+self.deployment+"' ")
+        query = self.dataDB.dbQuery("SELECT comment FROM frames WHERE frame_number = "+frame+" AND deployment_id='"+sqlQuote(self.deployment)+"' ")
         self.frameComment, =query.first()
         if self.frameComment==None:
             self.frameComment=''

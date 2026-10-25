@@ -8,6 +8,7 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from ui import ui_SEBASTES_dockable
 import pyStereoComp, dbConnection, videoSource, measurementsdock
+from dbConnection import sqlQuote
 import numpy as ny
 import cv2
 from math import *
@@ -498,7 +499,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.speciesList=[]
             self.speciesDescList=[]
             self.spcColors=[]
-            query=self.appDB.dbQuery("SELECT species_group, button_color, description FROM SPECIES_SETUP WHERE species_collection='"+self.speciesCollection+"' ORDER BY sort_order NULLS LAST, species_group")
+            query=self.appDB.dbQuery("SELECT species_group, button_color, description FROM SPECIES_SETUP WHERE species_collection='"+sqlQuote(self.speciesCollection)+"' ORDER BY sort_order NULLS LAST, species_group")
             cnt=0
             for spc, color,  desc in query:
                 self.speciesList.append(spc)
@@ -553,7 +554,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         try:
             # settings
             self.settings={}
-            query=self.appDB.dbQuery("SELECT setting, value as val FROM PROFILE_SETTINGS WHERE profile='"+self.activeProfile+"'")
+            query=self.appDB.dbQuery("SELECT setting, value as val FROM PROFILE_SETTINGS WHERE profile='"+sqlQuote(self.activeProfile)+"'")
             for parameter, value in query:
                 self.settings.update({parameter:value})
 
@@ -571,7 +572,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.metadataDockWidget.setWindowTitle(self.metadataGroup)
                 self.radioBtnList1=[]
                 self.radioBtnDescriptionsList1=[]
-                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
+                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+sqlQuote(self.metadataGroup)+
                 "' AND metadata_gui_element='ExclusiveRadioBox1' ORDER BY sort_order")
                 value=None
                 for value, Type,  desc in query:
@@ -582,7 +583,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 
                 self.radioBtnList2=[]
                 self.radioBtnDescriptionsList2=[]
-                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
+                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+sqlQuote(self.metadataGroup)+
                 "' AND metadata_gui_element='ExclusiveRadioBox2' ORDER BY sort_order")
                 for value, Type,  desc in query:
                         self.radioBtnList2.append(value)
@@ -592,7 +593,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     
                 self.radioBtnList3=[]
                 self.radioBtnDescriptionsList3=[]# this one is for horizontal single line radios
-                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
+                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type, description FROM FRAME_METADATA_SETUP WHERE metadata_group='"+sqlQuote(self.metadataGroup)+
                 "' AND metadata_gui_element='ExclusiveRadioBox3' ORDER BY sort_order")
                 for value, Type,  desc in query:
                         self.radioBtnList3.append(value)
@@ -602,7 +603,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 
                 self.lineEditList=[]
                 self.metadataTypeLabel2.setText('')
-                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
+                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type FROM FRAME_METADATA_SETUP WHERE metadata_group='"+sqlQuote(self.metadataGroup)+
                 "' AND metadata_gui_element='LineEdit' ORDER BY sort_order")
                 for value, Type in query:
                         self.lineEditList.append(value)
@@ -612,7 +613,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 
                 self.checkBoxList=[]
                 self.metadataTypeLabel3.setText('')
-                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type FROM FRAME_METADATA_SETUP WHERE metadata_group='"+self.metadataGroup+
+                query=self.appDB.dbQuery("SELECT metadata_tag, metadata_type FROM FRAME_METADATA_SETUP WHERE metadata_group='"+sqlQuote(self.metadataGroup)+
                 "' AND metadata_gui_element='CheckBox' ORDER BY sort_order")
                 for value, Type in query:
                         self.checkBoxList.append(value)
@@ -710,21 +711,21 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     if self.dataDB.db.isOpen():
                         # look to see if there are any trawlability records under checkbox
                         query=self.dataDB.dbQuery("SELECT deployment_id, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value FROM FRAME_METADATA "+" WHERE deployment_id='"+
-                        self.deployment+"' AND metadata_tag='Trawlable' and metadata_type='Check Box'")
+                        sqlQuote(self.deployment)+"' AND metadata_tag='Trawlable' and metadata_type='Check Box'")
                         for deployment_id, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value in query:
                             # insert net type of record
                             if metadata_value=='Checked':
                                 self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value,annotator)"+
-                                    " VALUES('"+self.activeProject+"', '"+deployment_id+"',"+frame_number+",'"+metadata_group+"','Yes','"+self.metadataTypesDict['ExclusiveRadioBox3']+
-                                    "','Checked','"+self.annotator+"')")
+                                    " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(deployment_id)+"',"+frame_number+",'"+sqlQuote(metadata_group)+"','Yes','"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox3'])+
+                                    "','Checked','"+sqlQuote(self.annotator)+"')")
                             else:
                                 self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value,annotator)"+
-                                    " VALUES('"+self.activeProject+"','"+deployment_id+"',"+frame_number+",'"+metadata_group+"','No','"+self.metadataTypesDict['ExclusiveRadioBox3']+
-                                    "','Checked','"+self.annotator+"')")
+                                    " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(deployment_id)+"',"+frame_number+",'"+sqlQuote(metadata_group)+"','No','"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox3'])+
+                                    "','Checked','"+sqlQuote(self.annotator)+"')")
                             
                         # delete old style records
                         self.dataDB.dbExec("DELETE FROM FRAME_METADATA WHERE"+
-                        " metadata_tag='Trawlable' and metadata_type='Check Box'  AND deployment_ID='"+self.deployment+"'")
+                        " metadata_tag='Trawlable' and metadata_type='Check Box'  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
 
             return True
         except:
@@ -910,7 +911,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 QMessageBox.warning(self, "ERROR", "Need a profile to work.")
                 return
             profile=dlg.value
-            query=self.appDB.dbQuery("SELECT value FROM PROFILE_SETTINGS WHERE profile='"+profile+"' AND setting='LeftCameraImagePath'")
+            query=self.appDB.dbQuery("SELECT value FROM PROFILE_SETTINGS WHERE profile='"+sqlQuote(profile)+"' AND setting='LeftCameraImagePath'")
             leftPath, =query.first()
             if leftPath==None or not QDir(deploymentPath + '/' + leftPath + '/').exists():
                 QMessageBox.warning(self, "ERROR", "This is not a valid deployment folder.")
@@ -1051,7 +1052,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         pass
             self.dataDB.dbExec("BEGIN TRANSACTION;")
             # move the data from targerts
-            query = self.dataDB.dbQuery("SELECT frame_number, target_number,  LX, LY, RX, RY, Range, Error, Length, LHX,LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ FROM targets WHERE deployment_id='"+self.deployment+"'")
+            query = self.dataDB.dbQuery("SELECT frame_number, target_number,  LX, LY, RX, RY, Range, Error, Length, LHX,LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
             for frame_number, target_number, LX, LY, RX, RY, Range, Error, Length, LHX, LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ in query:
 
                 # this is point data
@@ -1075,13 +1076,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     point_label='single_image_mark'
                 else:
                     point_label='range_to_target'
-                sql="INSERT INTO points (project, deployment_ID,frame_number, target_number,  point_label, LX, LY, RX, RY, X, Y, Z, Range, Error)  VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+point_label+"',"+LX+","+LY+","+RX+","+RY+","+HX+","+HY+","+HZ+","+Range+","+Error+")"
+                sql="INSERT INTO points (project, deployment_ID,frame_number, target_number,  point_label, LX, LY, RX, RY, X, Y, Z, Range, Error)  VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+frame_number+","+target_number+",'"+point_label+"',"+LX+","+LY+","+RX+","+RY+","+HX+","+HY+","+HZ+","+Range+","+Error+")"
                 self.dataDB.dbExec(sql)
                 if not Length==None:
                     # this is  line data
                     line_label='length'
                     self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+line_label+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+","+
+                                    "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+frame_number+","+target_number+",'"+line_label+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+","+
                                     RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
             self.dataDB.dbExec("COMMIT;")
             # now delete target table extra fields
@@ -1100,13 +1101,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.activeProfile=profile
         if not self.loadProfile():
             QMessageBox.warning(self, "ERROR", "There's something amiss with the profile settings.  Have a peek!")
-            self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+self.activeProject+"' and deployment_id='"+self.deployment+"'")
+            self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+sqlQuote(self.activeProject)+"' and deployment_id='"+sqlQuote(self.deployment)+"'")
             return False
         if newProfile:
             #were good to go,  put it into the db
             time_now=QDateTime().currentDateTime()
             self.dataDB.dbExec("INSERT INTO deployment (project, deployment_ID,last_opened,profile)"+
-            " VALUES('"+self.activeProject+"', '"+self.deployment+"','"+time_now.toString()+"','"+self.activeProfile+"')")
+            " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(self.deployment)+"','"+time_now.toString()+"','"+sqlQuote(self.activeProfile)+"')")
 
         self.loadEnhancements()
 
@@ -1491,7 +1492,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.gridBoxAction()
             if self.camtrawlMetadataFlag:
                 # check to see if this has already had an entry in the metadata table
-                query = self.dataDB.dbQuery("SELECT frame_number FROM frame_metadata WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                query = self.dataDB.dbQuery("SELECT frame_number FROM frame_metadata WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 got_frame, =query.first()
                 if got_frame==None:
                     self.getCamtrawlMetadataValues(self.imageSlider.value())
@@ -1646,8 +1647,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 old_spc=btn.text()
                 new_sort=str(self.spcButtons.index(btn)+1)
                 # update db
-                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+old_sort+" WHERE species_group='"+old_spc+"'")
-                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+new_sort+" WHERE species_group='"+new_spc+"'")
+                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+old_sort+" WHERE species_group='"+sqlQuote(old_spc)+"'")
+                self.appDB.dbExec("UPDATE SPECIES_SETUP SET sort_order="+new_sort+" WHERE species_group='"+sqlQuote(new_spc)+"'")
                 self.setupSpcBtns()
         else:
             self.pressTime.start()
@@ -1782,7 +1783,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # this is to quick undo auto targets only
             if self.computeMatchBox.isChecked():
                 # remove current mark and delete from db
-                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 # remove mark
                 self.gvLeft.removeItem(self.activeMark[self.gvLeft])
                 self.gvLeft.update()
@@ -1893,13 +1894,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     target_number = int(self.pointMarks[item][0])
                     self.currentTarget=target_number
                     # get target level annotator
-                    query = self.dataDB.dbQuery("SELECT annotator FROM TARGETS WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+" AND deployment_id='"+self.deployment+"'")
+                    query = self.dataDB.dbQuery("SELECT annotator FROM TARGETS WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                     current_tator, =query.first()
                     if current_tator==None:
                         current_tator=''
                     self.annotatorLabel.setText(current_tator)
                     
-                    query = self.dataDB.dbQuery("SELECT target_link FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+" AND deployment_id='"+self.deployment+"'")
+                    query = self.dataDB.dbQuery("SELECT target_link FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                     target_link, =query.first()
                     if target_link!='':
                         self.targetLinkLabel.setText(target_link)
@@ -1920,7 +1921,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
                 if len(self.linkData)>0:
                     self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                    " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                    " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                     self.linkData=[]
                     self.targetLinkLabel.setText(str(self.currentTarget))
                     self.linkBtn.setChecked(False)
@@ -1991,7 +1992,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         QMessageBox.warning(self, "ERROR", "Target not within selected grid cell! If you don't want this, check grid setup.")
                                         return
                             # add the mark
-                            query = self.dataDB.dbQuery("SELECT max(target_number) FROM targets WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                            query = self.dataDB.dbQuery("SELECT max(target_number) FROM targets WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                             target_count, =query.first()
                             if target_count!=None:
                                 self.currentTarget=int(target_count)+1
@@ -2086,15 +2087,15 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         tClass=self.spcButtons[self.spcInd].text()
                                         dt=datetime.now(timezone.utc)
                                         self.dataDB.dbExec("INSERT INTO targets (project, deployment_ID,frame_number, target_number, species_group, annotator, time_stamp)  "+
-                                        "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+tClass+"','"+self.annotator+"','"+dt.strftime(self.timestamp_format)+"')")
+                                        "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+sqlQuote(tClass)+"','"+sqlQuote(self.annotator)+"','"+dt.strftime(self.timestamp_format)+"')")
                                         self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY, X,Y,Z, range, error)  "+
-                                        "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
+                                        "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
                                         str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
                                         self.pairPoints=[]
 
                                         if len(self.linkData)>0:
                                             self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                                            " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                                            " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                                             self.linkData=[]
                                             self.linkBtn.setChecked(False)
                                         targetLabel=str(self.currentTarget)+" r = "+str(round(self.targetStereoData[0], 2))+"  e = "+str(round(self.targetStereoData[1], 2))
@@ -2145,14 +2146,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.calculate('point')
                                     dt=datetime.now(timezone.utc)
                                     self.dataDB.dbExec("INSERT INTO targets (project, deployment_ID,frame_number, target_number, species_group, annotator, time_stamp)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+tClass+"','"+self.annotator+"','"+dt.strftime(self.timestamp_format)+"')")
+                                    "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+sqlQuote(tClass)+"','"+sqlQuote(self.annotator)+"','"+dt.strftime(self.timestamp_format)+"')")
                                     self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY, X,Y,Z, range, error)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
+                                    "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'range_to_target',"+points+","+str(self.targetStereoData[2])+","+
                                     str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
                                     self.pairPoints=[]
                                     if len(self.linkData)>0:
                                         self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                                        " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                                        " WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                                         self.linkData=[]
                                         self.linkBtn.setChecked(False)
 
@@ -2185,9 +2186,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 dt=datetime.now(timezone.utc)
                                 if self.spcInd!=None:
                                     self.dataDB.dbExec("INSERT INTO targets (project, deployment_ID,frame_number, target_number, species_group,annotator, time_stamp)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+tClass+"','"+self.annotator+"','"+dt.strftime(self.timestamp_format)+"')")
+                                    "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+sqlQuote(tClass)+"','"+sqlQuote(self.annotator)+"','"+dt.strftime(self.timestamp_format)+"')")
                                     self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY)  "+
-                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'single_image_mark',"+points+")")
+                                    "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'single_image_mark',"+points+")")
                                     self.pairedTarget=False
                                     if self.showDataCheck.isChecked():
                                         self.datadlg.refreshView()
@@ -2217,12 +2218,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if target in self.linkData:
                     if self.linkData[1]==target:
                         self.linkData=[]
-                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+self.deployment+"'")
-                self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+self.deployment+"'")
-                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
             elif item in self.boxMarks:
                 boxTarget=self.boxMarks[item][0]
-                self.dataDB.dbExec("DELETE FROM bounding_boxes WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(boxTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("DELETE FROM bounding_boxes WHERE frame_number = "+self.frameBox.text()+" AND target_number = "+str(boxTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
             self.__changeImage()
             self.measurementsDock.refresh()
                 # zoom back if there are any active targets in either frame
@@ -2330,9 +2331,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.keepLineName(self.fishTarget, label)
         # one line per measurement type and target
         self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" AND target_number ="+str(self.fishTarget)+
-            " AND line_label='"+label+"' AND deployment_ID='"+self.deployment+"'")
+            " AND line_label='"+label+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
         self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
-            "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.fishTarget)+",'"+label+"',"+
+            "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.fishTarget)+",'"+label+"',"+
             ",".join(values[3:17])+","+values[0]+","+values[2]+")")
         lineL.addLabel(self.fishHead[0], label[0:3]+" = "+str(round(self.targetStereoData[0], 2))+" e = "+str(round(self.targetStereoData[2], 2)),
                 color=self.guiSettings['TargetLineColor'], size=self.guiSettings['LabelTextSize'])
@@ -2352,7 +2353,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def keepLineName(self, target, label):
         # remember the name of a measurement about to be replaced, to offer it again
-        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+self.frameBox.text()+
             " AND target_number="+str(target)+" AND line_label='"+label+"'")
         for name, in query:
             if name:
@@ -2368,19 +2369,19 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.previousLineName=None
         if previous and previous[:3]==(self.frameBox.text(), target, label):
             return previous[3]
-        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+self.frameBox.text()+
             " AND target_number="+str(target)+" AND line_label<>'"+label+"'")
         for name, in query:
             if name:
                 return name
         species=None
-        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+self.deployment+"' AND frame_number="+self.frameBox.text()+
+        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+self.frameBox.text()+
             " AND target_number="+str(target))
         for species, in query:
             pass
         species=species or 'Fish'
         numbers=[0]
-        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+self.deployment+"'")
+        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
         for name, in query:
             if name and name.startswith(species+' ') and name[len(species)+1:].isdigit():
                 numbers.append(int(name[len(species)+1:]))
@@ -2394,7 +2395,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         default=self.defaultMeasurementName(target, label)
         name, ok=QInputDialog.getText(self, 'Measurement name', 'Name of this '+label+' measurement:', QLineEdit.EchoMode.Normal, default)
         name=name.strip() if ok and name.strip() else default
-        self.dataDB.dbExec("UPDATE lines SET name='"+name.replace("'", "''")+"' WHERE deployment_id='"+self.deployment+"' AND frame_number="+
+        self.dataDB.dbExec("UPDATE lines SET name='"+sqlQuote(name)+"' WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+
             self.frameBox.text()+" AND target_number="+str(target)+" AND line_label='"+label+"'")
         self.measurementsDock.refresh()
         return name
@@ -2471,7 +2472,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 boxObj = imageObj.addPolygon(rubberbandObj,color=self.spcColors[self.spcInd], thickness=self.guiSettings['BoxLineThickness'], selectable=True,
                         selectThickness=4.0, selectColor=self.selColor)
                 # figure out bbox target number
-                query = self.dataDB.dbQuery("SELECT max(target_number) FROM bounding_boxes WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                query = self.dataDB.dbQuery("SELECT max(target_number) FROM bounding_boxes WHERE frame_number = "+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 max_target, =query.first()
                 if max_target!=None:
                     self.currentBBoxTarget=int(max_target)+1
@@ -2501,8 +2502,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 width=imageObj.image.enhancedData.shape[1]
                 height=imageObj.image.enhancedData.shape[0]
                 self.dataDB.dbExec("INSERT INTO bounding_boxes (project, deployment_ID,frame_number, target_number, species_group, camera_id, image_file_name, origin_x,origin_y,width, height, frame_width, frame_height,annotator)"+
-                                                    " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentBBoxTarget)+",'"+self.spcButtons[self.spcInd].text()+"','" +cam+"',"
-                                                    "'"+image_file_name+"', "+str(BoxCoords.x())+", "+str(BoxCoords.y())+", "+str(BoxCoords.width())+", "+str(BoxCoords.height())+","+str(width)+","+str(height)+",'"+self.annotator+"')")
+                                                    " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentBBoxTarget)+",'"+sqlQuote(self.spcButtons[self.spcInd].text())+"','" +cam+"',"
+                                                    "'"+sqlQuote(image_file_name)+"', "+str(BoxCoords.x())+", "+str(BoxCoords.y())+", "+str(BoxCoords.width())+", "+str(BoxCoords.height())+","+str(width)+","+str(height)+",'"+sqlQuote(self.annotator)+"')")
                 return# we are just rubberbanding, no need to do anythin else
 
             dimLine = imageObj.endDimensionLine()
@@ -2546,7 +2547,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             TY = str(self.targetStereoData[15])
                             TZ = str(self.targetStereoData[16])
                             self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
-                                        "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
+                                        "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                         ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
                             self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
                         self.measureBtn.setChecked(False)
@@ -2649,7 +2650,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 TY = str(self.targetStereoData[15])
                                 TZ = str(self.targetStereoData[16])
                                 self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
-                                            "VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
+                                            "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+","+str(self.currentTarget)+",'"+self.measurementBox.currentText()+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+
                                             ","+RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
                                 self.nameMeasurement(self.currentTarget, self.measurementBox.currentText())
                             self.measureBtn.setChecked(False)
@@ -2667,8 +2668,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 break
         if self.spcInd:
             species_selected=self.spcButtons[self.spcInd].text()
-            query = self.dataDB.dbQuery("SELECT count(*) FROM targets WHERE species_group='"+species_selected+
-            "' AND frame_number="+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+            query = self.dataDB.dbQuery("SELECT count(*) FROM targets WHERE species_group='"+sqlQuote(species_selected)+
+            "' AND frame_number="+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
             count, =query.first()
 
             countstr="targets = "+count
@@ -2711,7 +2712,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def getTargetComment(self):
         try:
             if self.currentTarget>0:
-                query = self.dataDB.dbQuery("SELECT species_group, comment FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+" AND deployment_id='"+self.deployment+"'")
+                query = self.dataDB.dbQuery("SELECT species_group, comment FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 species_group, comment=query.first()
                 if species_group!=None:
                     targetClass=species_group
@@ -2721,7 +2722,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 dlg.exec()
                 targetComment=dlg.comment
                 if not targetComment==None:
-                    self.dataDB.dbExec("UPDATE targets SET comment = '"+targetComment+"' WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+                    self.dataDB.dbExec("UPDATE targets SET comment = '"+sqlQuote(targetComment)+"' WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
             else:
                 QMessageBox.warning(self, "ERROR", "No Active Target!")
         except:
@@ -2736,13 +2737,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def goToLastFrame(self):
         frameIndex=None
-        query = self.dataDB.dbQuery("SELECT max(frame_number) FROM targets WHERE deployment_id='"+self.deployment+"'")
+        query = self.dataDB.dbQuery("SELECT max(frame_number) FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
         frame, = query.first()
         if frame!=None:
             #get my index from targets
             frameIndex=self.leftImageFrames.index(int(frame))
         else:
-            query = self.dataDB.dbQuery("SELECT max(frame_number) FROM frame_metadata WHERE deployment_id='"+self.deployment+"'")
+            query = self.dataDB.dbQuery("SELECT max(frame_number) FROM frame_metadata WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
             frame, = query.first()
             if frame!=None:
                 #get my index from targets
@@ -2912,12 +2913,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
                     # find line marks
             t=self.currentTarget
-            query = self.dataDB.dbQuery("SELECT target_number FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+" AND deployment_id='"+self.deployment+"'")
+            query = self.dataDB.dbQuery("SELECT target_number FROM targets WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
             target_number, = query.first()
             if target_number!=None:
                 # clear out current length measurements
                 self.keepLineName(self.currentTarget, self.measurementBox.currentText())
-                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND line_label='"+self.measurementBox.currentText()+"' AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND line_label='"+self.measurementBox.currentText()+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 # reload frame
                             # get the zoom state
                 if self.activeMark[self.gvLeft]:
@@ -2965,7 +2966,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if reply==QMessageBox.No:
                 return
             self.linkData=[]
-            self.dataDB.dbQuery("UPDATE targets set target_link=NULL WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+"  AND deployment_ID='"+self.deployment+"'")
+            self.dataDB.dbQuery("UPDATE targets set target_link=NULL WHERE frame_number = "+self.frameBox.text()+" and target_number="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
             self.targetLinkLabel.setText('')
                         
                         
@@ -2989,26 +2990,26 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             comment=self.frameCommentDlg.commentBox.toPlainText()
 
             # see if current frame is already in 
-            query=self.dataDB.dbQuery("SELECT frame_number FROM FRAMES WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+            query=self.dataDB.dbQuery("SELECT frame_number FROM FRAMES WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
             frame, =query.first()
             if frame:# already exists
-                self.dataDB.dbExec("UPDATE frames SET comment='"+comment+"', annotator='"+current_tators+"' WHERE frame_number="+self.frameBox.text()+
-                "  AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("UPDATE frames SET comment='"+sqlQuote(comment)+"', annotator='"+sqlQuote(current_tators)+"' WHERE frame_number="+self.frameBox.text()+
+                "  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
             else:
                 dt=datetime.now(timezone.utc)
                 self.dataDB.dbExec("INSERT INTO frames (project, deployment_ID, frame_number, frame_time, comment, annotator, time_stamp)"+
-                    " VALUES('"+self.activeProject+"', '"+self.deployment+"',"+self.frameBox.text()+",'"+self.dtString+"','"+comment+"','"+current_tators+"','"+dt.strftime(self.timestamp_format)+"')")
+                    " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+self.dtString+"','"+sqlQuote(comment)+"','"+sqlQuote(current_tators)+"','"+dt.strftime(self.timestamp_format)+"')")
             if self.metadataCheckBox.isChecked():
                 # now we write metadata
-                self.dataDB.dbExec("DELETE FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND deployment_ID='"+self.deployment+"'")
+                self.dataDB.dbExec("DELETE FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 if 'ExclusiveRadioBox1' in self.metadataTypesDict:
                     for rBtn in self.radioBtnTags1:
                         if rBtn.isChecked():
                             mdt_tag=rBtn.text()
                             # write exclusive radio button 1
                             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value,annotator)"+
-                            " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'"+self.metadataGroup+"','"+mdt_tag+"','"+self.metadataTypesDict['ExclusiveRadioBox1']+
-                            "','Checked','"+self.annotator+"')")
+                            " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+sqlQuote(self.metadataGroup)+"','"+sqlQuote(mdt_tag)+"','"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox1'])+
+                            "','Checked','"+sqlQuote(self.annotator)+"')")
                             break # we can do this caouse its autoexclusive!
                             
                 if 'ExclusiveRadioBox2' in self.metadataTypesDict:
@@ -3017,8 +3018,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             mdt_tag=rBtn.text()
                             # write exclusive radio button 1
                             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                            " VALUES('"+self.activeProject+"', '"+self.deployment+"',"+self.frameBox.text()+",'"+self.metadataGroup+"','"+mdt_tag+"','"+self.metadataTypesDict['ExclusiveRadioBox2']+
-                            "','Checked','"+self.annotator+"')")
+                            " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+sqlQuote(self.metadataGroup)+"','"+sqlQuote(mdt_tag)+"','"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox2'])+
+                            "','Checked','"+sqlQuote(self.annotator)+"')")
                             break # we can do this caouse its autoexclusive!
                                     
                     for rBtn in self.radioBtnTags3:
@@ -3026,8 +3027,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             mdt_tag=rBtn.text()
                             # write exclusive radio button 1
                             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value,annotator)"+
-                            " VALUES('"+self.activeProject+"', '"+self.deployment+"',"+self.frameBox.text()+",'"+self.metadataGroup+"','"+mdt_tag+"','"+self.metadataTypesDict['ExclusiveRadioBox3']+
-                            "','Checked','"+self.annotator+"')")
+                            " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+sqlQuote(self.metadataGroup)+"','"+sqlQuote(mdt_tag)+"','"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox3'])+
+                            "','Checked','"+sqlQuote(self.annotator)+"')")
                             break # we can do this caouse its autoexclusive!
                             
                 if 'LineEdit' in self.metadataTypesDict:
@@ -3036,8 +3037,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             mdt_tag=self.metadataLineEditLabels[i].text()
                             mtd_val=self.metadataLineEdits[i].text()
                             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                            " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'"+self.metadataGroup+"','"+mdt_tag+"','"+self.metadataTypesDict['LineEdit']+"','"+
-                            mtd_val+"','"+self.annotator+"')")
+                            " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+sqlQuote(self.metadataGroup)+"','"+sqlQuote(mdt_tag)+"','"+sqlQuote(self.metadataTypesDict['LineEdit'])+"','"+
+                            sqlQuote(mtd_val)+"','"+sqlQuote(self.annotator)+"')")
 
                 if 'CheckBox' in self.metadataTypesDict:
                     for i in list(range(len(self.metadataCheckBoxes))):
@@ -3048,8 +3049,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                             else:
                                 mtd_val='Unchecked'
                             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                            " VALUES('"+self.activeProject+"', '"+self.deployment+"',"+self.frameBox.text()+",'"+self.metadataGroup+"','"+mdt_tag+"','"+self.metadataTypesDict['CheckBox']+"','"+
-                            mtd_val+"','"+self.annotator+"')")
+                            " VALUES('"+sqlQuote(self.activeProject)+"', '"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'"+sqlQuote(self.metadataGroup)+"','"+sqlQuote(mdt_tag)+"','"+sqlQuote(self.metadataTypesDict['CheckBox'])+"','"+
+                            sqlQuote(mtd_val)+"','"+sqlQuote(self.annotator)+"')")
             if not self.metadataStickyBox.isChecked():# reset autoexclusive buttons
                 self.clearAutoExclusiveRadioBtnBoxes()
             if self.showDataCheck.isChecked():
@@ -3081,7 +3082,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 # the chosen measurement is on another frame
                 self.annotationFocus=None
         size=self.guiSettings['LabelTextSize']
-        query=self.dataDB.dbQuery("SELECT target_number, species_group FROM targets WHERE frame_number="+frame+" AND deployment_id='"+self.deployment+"'")
+        query=self.dataDB.dbQuery("SELECT target_number, species_group FROM targets WHERE frame_number="+frame+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
         for target, species_group in query:
             target=int(target)
             alpha=255 if focus is None or target==focus else 60
@@ -3091,7 +3092,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             spcLabel=''
             if self.guiSettings['LabelSpeciesParam']>0 and species_group:
                 spcLabel=' '+species_group[0:self.guiSettings['LabelSpeciesParam']]
-            query1=self.dataDB.dbQuery("SELECT LX, LY, RX, RY, Range, Error FROM points WHERE frame_number="+frame+" AND deployment_id='"+self.deployment+
+            query1=self.dataDB.dbQuery("SELECT LX, LY, RX, RY, Range, Error FROM points WHERE frame_number="+frame+" AND deployment_id='"+sqlQuote(self.deployment)+
                 "' AND target_number="+str(target))
             for LX, LY, RX, RY, Range, Error in query1:
                 style='o' if LX!=None and RX!=None else '+'
@@ -3107,7 +3108,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     if not self.labelCheck.isChecked():
                         marker.hideLabels(None)
             query2=self.dataDB.dbQuery("SELECT line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, Length, Error, name FROM lines WHERE frame_number="+frame+
-                " AND deployment_id='"+self.deployment+"' AND target_number="+str(target))
+                " AND deployment_id='"+sqlQuote(self.deployment)+"' AND target_number="+str(target))
             for line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, Length, Error, name in query2:
                 lineObjs={}
                 for imageObj, x1, y1, x2, y2 in [(self.gvLeft, LX1, LY1, LX2, LY2), (self.gvRight, RX1, RY1, RX2, RY2)]:
@@ -3142,7 +3143,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         try:
             if self.makeBoxes:
                 # redraw boxes
-                query = self.dataDB.dbQuery("SELECT camera_id,species_group,origin_x,origin_y,width,height,target_number FROM bounding_boxes WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                query = self.dataDB.dbQuery("SELECT camera_id,species_group,origin_x,origin_y,width,height,target_number FROM bounding_boxes WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 for camera_id,species_group,origin_x,origin_y,width,height,target_number in query:
                     if camera_id=='left':
                         imageObj=self.gvLeft
@@ -3174,7 +3175,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
             else:
                 # get frame level annotator
-                query = self.dataDB.dbQuery("SELECT annotator FROM FRAMES WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                query = self.dataDB.dbQuery("SELECT annotator FROM FRAMES WHERE frame_number="+self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 current_tators, =query.first()
                 if current_tators==None:
                     current_tators=''
@@ -3191,12 +3192,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.activeLine[self.gvRight]=None
                 
                 query = self.dataDB.dbQuery("SELECT target_number, species_group FROM targets WHERE frame_number="+
-                self.frameBox.text()+" AND deployment_id='"+self.deployment+"'")
+                self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 targetToDelete=[]
                 for target_number, species_group in query:
                     # points
                     query1 = self.dataDB.dbQuery("SELECT point_label, LX, LY, RX, RY, Range, Error FROM points WHERE frame_number="+
-                    self.frameBox.text()+" AND deployment_id='"+self.deployment+"' AND target_number="+target_number)
+                    self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"' AND target_number="+target_number)
                     for point_label,  LX, LY, RX, RY, Range, Error in query1: #, Length, LHX,LHY, LTX, LTY, RHX, RHY, RTX, RTY
                         spcLabel=''
                         if self.guiSettings['LabelSpeciesParam']>0:
@@ -3256,7 +3257,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                 marker.hideLabels(None)
                     # lines
                     query2 = self.dataDB.dbQuery("SELECT line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, Length, Error FROM lines WHERE frame_number="+
-                    self.frameBox.text()+" AND deployment_id='"+self.deployment+"' AND target_number="+target_number)
+                    self.frameBox.text()+" AND deployment_id='"+sqlQuote(self.deployment)+"' AND target_number="+target_number)
                     for line_label,  LX1,LY1, LX2, LY2, RX1, RY1, RX2, RY2,  Length,  Error in query2: #, 
                         if species_group == 'SceneMeasurement':  #this is a line only object
                             col=self.guiSettings['SceneColor']
@@ -3289,12 +3290,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         
                 # delete bad target (temporary)
                 for t in targetToDelete:
-                    self.dataDB.dbExec("DELETE FROM targets WHERE frame_number="+self.frameBox.text()+" AND target_number="+t+"  AND deployment_ID='"+self.deployment+"'")
+                    self.dataDB.dbExec("DELETE FROM targets WHERE frame_number="+self.frameBox.text()+" AND target_number="+t+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 # relod frame metadata
                 if self.settings['CollectMetadata'].lower()=='true' or self.settings['CollectMetadata'].lower()=='yes':
                     if 'ExclusiveRadioBox1' in self.metadataTypesDict:
                         query = self.dataDB.dbQuery("SELECT metadata_tag, metadata_value FROM FRAME_METADATA WHERE frame_number="+
-                        self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND metadata_type='"+self.metadataTypesDict['ExclusiveRadioBox1']+"' AND deployment_id='"+self.deployment+"'")
+                        self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND metadata_type='"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox1'])+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                         # this should be only one
                         radioBtnTag1,  val=query.first()
                         if radioBtnTag1:
@@ -3304,7 +3305,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     
                     if 'ExclusiveRadioBox2' in self.metadataTypesDict:
                         query = self.dataDB.dbQuery("SELECT metadata_tag, metadata_value FROM FRAME_METADATA WHERE frame_number="+
-                        self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND metadata_type='"+self.metadataTypesDict['ExclusiveRadioBox2']+"' AND deployment_id='"+self.deployment+"'")
+                        self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND metadata_type='"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox2'])+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                         # this should be only one
                         radioBtnTag2,  val=query.first()
                         if radioBtnTag2:
@@ -3314,7 +3315,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     
                     if 'ExclusiveRadioBox3' in self.metadataTypesDict:
                         query = self.dataDB.dbQuery("SELECT metadata_tag, metadata_value FROM FRAME_METADATA WHERE frame_number="+
-                        self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND metadata_type='"+self.metadataTypesDict['ExclusiveRadioBox3']+"' AND deployment_id='"+self.deployment+"'")
+                        self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND metadata_type='"+sqlQuote(self.metadataTypesDict['ExclusiveRadioBox3'])+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                         # this should be only one
                         radioBtnTag3,  val=query.first()
                         if radioBtnTag3:
@@ -3324,7 +3325,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     
                     if 'LineEdit' in self.metadataTypesDict:
                         query = self.dataDB.dbQuery("SELECT metadata_tag, metadata_value FROM FRAME_METADATA WHERE frame_number="+
-                        self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND metadata_type='"+self.metadataTypesDict['LineEdit']+"' AND deployment_id='"+self.deployment+"'")
+                        self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND metadata_type='"+sqlQuote(self.metadataTypesDict['LineEdit'])+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                         for lineEditTag,  val in query:
                             if lineEditTag:
                                 for i in list(range(len(self.metadataLineEditLabels))):
@@ -3333,7 +3334,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         
                     if 'CheckBox' in self.metadataTypesDict:
                         query = self.dataDB.dbQuery("SELECT metadata_tag, metadata_value FROM FRAME_METADATA WHERE frame_number="+
-                        self.frameBox.text()+" AND metadata_group='"+self.metadataGroup+"' AND metadata_type='"+self.metadataTypesDict['CheckBox']+"' AND deployment_id='"+self.deployment+"'")
+                        self.frameBox.text()+" AND metadata_group='"+sqlQuote(self.metadataGroup)+"' AND metadata_type='"+sqlQuote(self.metadataTypesDict['CheckBox'])+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                         for checkBoxTag,  val in query:
                             if checkBoxTag:
                                 for i in list(range(len(self.metadataLineEditLabels))):
@@ -3579,7 +3580,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             gvObj=self.gvLeft
         # check to see if we already have data with a grid here
         query=self.dataDB.dbQuery("SELECT metadata_value FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-        " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='GridSize' AND deployment_id='"+self.deployment+"'")
+        " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='GridSize' AND deployment_id='"+sqlQuote(self.deployment)+"'")
         gridsize=query.first()[0]# we may have an existing grid we collected data with
         if not gridsize:# first grid in this frame
             self.randomCell=None
@@ -3588,19 +3589,19 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         else: # get random square previously used
             if gridsize==self.gridSetup['GridSize']:# if grid size is same, reload previous grid
                 query=self.dataDB.dbQuery("SELECT metadata_value FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-                " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='RandomCell' AND deployment_id='"+self.deployment+"'")
+                " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='RandomCell' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 if query.first()[0]=='None':
                     self.randomCell=None
                 else:
                     self.randomCell=int(query.first()[0])
                 query=self.dataDB.dbQuery("SELECT metadata_tag FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-                " AND metadata_group='CountingGridInformation' AND metadata_type='GridSize' AND metadata_value='"+gridsize+"' AND deployment_id='"+self.deployment+"'")
+                " AND metadata_group='CountingGridInformation' AND metadata_type='GridSize' AND metadata_value='"+gridsize+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
                 self.gridCount=int(query.first()[0])
             else:
                 # this is a new grid with a different size!
                 self.randomCell=None
                 query=self.dataDB.dbQuery("SELECT metadata_tag FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-                " AND metadata_group='CountingGridInformation' AND deployment_id='"+self.deployment+"' GROUP BY metadata_tag")
+                " AND metadata_group='CountingGridInformation' AND deployment_id='"+sqlQuote(self.deployment)+"' GROUP BY metadata_tag")
                 grids=[]
                 for grid,  in query:
                     grids.append(int(grid))
@@ -3765,41 +3766,41 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def writeGridDetailsToMetadata(self):
         # check to see if this size grid is already in
         query=self.dataDB.dbQuery("SELECT metadata_value FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-        " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='GridSize' AND deployment_id='"+self.deployment+"'")
+        " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='GridSize' AND deployment_id='"+sqlQuote(self.deployment)+"'")
         gridsize=query.first()[0]# we may have an existing grid we collected data with
         if gridsize==self.gridSetup['GridSize']:# this size grid already exists for this frame, update species list?
             query=self.dataDB.dbQuery("SELECT metadata_value FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+\
-            " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='SpeciesInGrid' AND deployment_id='"+self.deployment+"'")
+            " AND metadata_group='CountingGridInformation' AND metadata_tag='1' AND metadata_type='SpeciesInGrid' AND deployment_id='"+sqlQuote(self.deployment)+"'")
             spc_list=query.first()[0].split(";")# we may have an existing grid we collected data with
             for spc in spc_list:
                 self.speciesInGrid.add(spc)
             # update species list if user added more counts
             self.dataDB.dbExec("UPDATE FRAME_METADATA SET metadata_value = '"+";".join(self.speciesInGrid)+"' WHERE frame_number="+self.frameBox.text()+\
             " AND metadata_group = 'CountingGridInformation'"+
-             "AND metadata_type='SpeciesInGrid' AND metadata_tag='"+str(self.gridCount)+"' AND deployment_id='"+self.deployment+"'")
+             "AND metadata_type='SpeciesInGrid' AND metadata_tag='"+str(self.gridCount)+"' AND deployment_id='"+sqlQuote(self.deployment)+"'")
         else: # new grid, need to write everything
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','GridSize','"+
-                                self.gridSetup['GridSize']+"','"+self.annotator+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','GridSize','"+
+                                self.gridSetup['GridSize']+"','"+sqlQuote(self.annotator)+"')")
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','SpeciesInGrid','"+
-                                ";".join(self.speciesInGrid)+"','"+self.annotator+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','SpeciesInGrid','"+
+                                ";".join(self.speciesInGrid)+"','"+sqlQuote(self.annotator)+"')")
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','RandomCell','"+
-                                str(self.randomCell)+"','"+self.annotator+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','RandomCell','"+
+                                str(self.randomCell)+"','"+sqlQuote(self.annotator)+"')")
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project,deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','CameraUsed','"+
-                                self.activeGV+"','"+self.annotator+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','CameraUsed','"+
+                                self.activeGV+"','"+sqlQuote(self.annotator)+"')")
             vals=self.gridSetup['GridSize'].split('x')
             self.dataDB.dbExec("INSERT INTO FRAME_METADATA (project, deployment_ID, frame_number, metadata_group, metadata_tag, metadata_type, metadata_value, annotator)"+
-                                " VALUES('"+self.activeProject+"','"+self.deployment+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','ScalingFactor','"+
-                                str(int(vals[0])*int(vals[1]))+"','"+self.annotator+"')")
+                                " VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameBox.text()+",'CountingGridInformation','"+str(self.gridCount)+"','ScalingFactor','"+
+                                str(int(vals[0])*int(vals[1]))+"','"+sqlQuote(self.annotator)+"')")
 
     def clearGridData(self):
         reply=QMessageBox.warning(self, "WARNING", "Sure you want to delete the grid data for this frame?",  QMessageBox.Yes, QMessageBox.No)
         if reply==QMessageBox.Yes:
             self.gridCheck.setChecked(False)
-            self.dataDB.dbExec("DELETE FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+" AND deployment_ID='"+self.deployment+"' AND metadata_group='CountingGridInformation'")
+            self.dataDB.dbExec("DELETE FROM FRAME_METADATA WHERE frame_number="+self.frameBox.text()+" AND deployment_ID='"+sqlQuote(self.deployment)+"' AND metadata_group='CountingGridInformation'")
             self.gridBoxAction()
 
     def writeDatatoCSV(self):
@@ -3809,22 +3810,22 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         import sqlite3
         try:
             conn = sqlite3.connect(self.dataPath + self.activeProject+'_' + self.deployment+'.db', isolation_level=None,detect_types=sqlite3.PARSE_COLNAMES)
-            db_df = pd.read_sql_query("SELECT * FROM frames WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM frames WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_' + self.deployment+'_frames.csv')
             db_df.to_csv(filename, index=False)
-            db_df = pd.read_sql_query("SELECT * FROM targets WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM targets WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_' + self.deployment+'_targets.csv')
             db_df.to_csv(filename, index=False)
-            db_df = pd.read_sql_query("SELECT * FROM points WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM points WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_' + self.deployment+'_points.csv')
             db_df.to_csv(filename, index=False)
-            db_df = pd.read_sql_query("SELECT * FROM lines WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM lines WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_' + self.deployment+'_lines.csv')
             db_df.to_csv(filename, index=False)
-            db_df = pd.read_sql_query("SELECT * FROM bounding_boxes WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM bounding_boxes WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_' + self.deployment+'_bounding_boxes.csv')
             db_df.to_csv(filename, index=False)
-            db_df = pd.read_sql_query("SELECT * FROM frame_metadata WHERE  deployment_id='"+self.deployment+"'", conn)
+            db_df = pd.read_sql_query("SELECT * FROM frame_metadata WHERE  deployment_id='"+sqlQuote(self.deployment)+"'", conn)
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_'+ self.deployment+'_frame_metadata.csv')
             db_df.to_csv(filename, index=False)
             # write out image adjustments as well

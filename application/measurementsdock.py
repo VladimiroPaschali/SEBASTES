@@ -6,6 +6,7 @@ Names are edited in place (double-click); clicking a row goes to that frame and 
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
+from dbConnection import sqlQuote
 
 COLUMNS = ['Name', 'Frame', 'Target', 'Species', 'Measurement', 'Length (cm)', 'Distance (cm)', 'e (px)']
 
@@ -56,7 +57,7 @@ class MeasurementsDock(QDockWidget):
         query = self.dataDB.dbQuery("SELECT l.rowid, l.name, l.frame_number, l.target_number, t.species_group, l.line_label, l.length, p.range, l.error "+
             "FROM lines l LEFT JOIN targets t ON t.deployment_id=l.deployment_id AND t.frame_number=l.frame_number AND t.target_number=l.target_number "+
             "LEFT JOIN points p ON p.deployment_id=l.deployment_id AND p.frame_number=l.frame_number AND p.target_number=l.target_number "+
-            "AND p.point_label='range_to_target' WHERE l.deployment_id='"+self.deployment+"' ORDER BY l.frame_number, l.target_number")
+            "AND p.point_label='range_to_target' WHERE l.deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY l.frame_number, l.target_number")
         for rowid, name, frame, target, species, label, length, rng, error in query:
             row = self.table.rowCount()
             self.table.insertRow(row)
@@ -95,7 +96,7 @@ class MeasurementsDock(QDockWidget):
         '''
         if self.filling or item.column() != 0:
             return
-        name = str(item.text()).strip().replace("'", "''")
+        name = sqlQuote(str(item.text()).strip())
         rowid = item.data(Qt.ItemDataRole.UserRole)
         self.dataDB.dbExec("UPDATE lines SET name='"+name+"' WHERE rowid="+str(rowid))
 
