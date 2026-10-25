@@ -193,6 +193,7 @@ class QViewerBase(QGraphicsView):
         self.sceneItems = []
         self.stickyScale = (1.0,1.0)
         self.dimmed = False
+        self.highlightColor = None
 
         #  enable mouse tracking
         self.setMouseTracking(True)
@@ -1585,6 +1586,32 @@ class QViewerBase(QGraphicsView):
         if dimmed != self.dimmed:
             self.dimmed = dimmed
             self.viewport().update()
+
+
+    def setHighlighted(self, color):
+        """
+        setHighlighted draws a 2 pixel border in color (a QColor) just inside the view, for example to show
+        that this view is the one waiting for the user's click. None removes the border.
+        """
+        if color != self.highlightColor:
+            self.highlightColor = color
+            self.viewport().update()
+
+
+    def paintEvent(self, ev):
+        """
+        paintEvent draws the view, then its highlight border. The border is painted in viewport coordinates and
+        takes no room: the image keeps its size and place.
+        """
+        QGraphicsView.paintEvent(self, ev)
+        if self.highlightColor is not None:
+            painter = QPainter(self.viewport())
+            pen = QPen(self.highlightColor)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(QRectF(1, 1, self.viewport().width() - 2, self.viewport().height() - 2))
+            painter.end()
 
 
     def drawForeground(self, painter, rect):

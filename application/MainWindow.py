@@ -607,7 +607,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playBtn.setStyleSheet(theme.playButtonStyle())
         colors=theme.colors()
         self.imageSlider.setMarkColors(colors['warning'], colors['text'], colors['surface'])
-        # the epipolar curves are in the accent colour
+        # the border of the image that waits for a click and the epipolar curves are in the accent colour
+        self.showActiveImageCue()
         self.updateEpipolar()
         self.updatePlayButton()
         self.updateStatusMode()
@@ -865,6 +866,15 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if item is not None:
                 self.epipolarItems[otherObj].append(item)
         otherObj.viewport().update()
+
+    def showActiveImageCue(self):
+        '''
+        showActiveImageCue puts a border in the accent colour around the image the guided fish marking waits for. The other
+        image is dimmed (updateFishGuide).
+        '''
+        color=QColor(theme.colors()['accentSoft'])
+        for imageObj in [self.gvLeft, self.gvRight]:
+            imageObj.setHighlighted(color if self.fishGuideActive() and self.fishImage() is imageObj else None)
 
     ######################1. SETUP FUNCTIONS################################
     
@@ -2703,9 +2713,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.gvLeft.setDimmed(False)
             self.gvRight.setDimmed(False)
             self.statusBar.clearMessage()
+            self.showActiveImageCue()
             return
         self.gvLeft.setDimmed(self.fishImage()!=self.gvLeft)
         self.gvRight.setDimmed(self.fishImage()!=self.gvRight)
+        self.showActiveImageCue()
         messages=['Fish: Shift+click the head in the LEFT image (a plain click only counts the fish).',
                   'Fish: click the same point of the head in the RIGHT image. Esc cancels.',
                   'Fish: click the tail in the LEFT image. Esc keeps the fish without a length.',
