@@ -99,7 +99,7 @@ On the first start SEBASTES tells you it created an empty `Application.db`. Befo
 
 ### 1. Species collection
 
-Open **File > Setup Profiles, Species, Etc** and go to the **Species Collections** tab.
+Open **Settings > Profiles...** and go to the **Species Collections** tab.
 
 1. Click **Create new Species Collection** and type a name and a description.
 2. Click **Insert** once per species. Give each one a name, a description, a button color and an optional order.
@@ -136,7 +136,7 @@ Frame metadata are extra fields recorded per frame, such as habitat type. Groups
 
 ### 4. Project
 
-Open **File > Create New Project**, or click **Create Project** in the project list that appears when you load a deployment. Give the project a name and pick its species collection and metadata group.
+Open **Settings > Create New Project...**, or click **Create Project** in the project list that appears when you load a deployment. Give the project a name and pick its species collection and metadata group.
 
 ## Preparing a deployment
 
@@ -178,16 +178,17 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
 
 ## Annotating
 
-1. **File > Load Deployment...** and select the deployment folder.
+1. **File > Open Deployment...** (Ctrl+O, or **Open** in the toolbar) and select the deployment folder.
 2. Select the project.
 3. The first time you open a deployment, select its profile. SEBASTES remembers the profile for that deployment.
-4. Move through the frames:
-   - **Right / Left arrow**: move by the number of frames set in **Sample Interval**.
-   - **Ctrl + Right / Left**: move one frame.
+4. Move through the frames with the bar under the images. Its buttons do the same as the keys, and the sample interval is set in the same bar (**Every ... frames, offset ...**):
+   - **Right / Left arrow**, or the `<<` and `>>` buttons: move by the number of frames set in **Every ... frames**.
+   - **Ctrl + Right / Left**, or the `|<` and `>|` buttons next to Play: move one frame.
+   - The buttons at the ends of the row go to the first frame and to the last frame; the last button goes to the last frame that has data (Record only).
    - You can also use the slider, or type a frame number in the frame box.
-   - **Play** runs through the frames and turns into a red **Pause** button. The speed is set in frames per second with the **Playback speed** slider, or by typing a value in the fps box next to it. For videos it starts at the video's own frame rate. When the computer can't draw every frame at the chosen speed, frames are skipped so the video still plays at that speed. Playback stops at the last frame, and Play is disabled while recording.
-5. Press **Record** and enter your initials. The button turns red while recording. The species buttons and the measuring tools are enabled while recording; **Measure Target** is shown only while recording in stereo mode, and **Link Target**, **Edit Species** and **Delete Link** only while recording. A selected species button is filled with its color.
-6. **Copy Images to...** saves the current pair. Image files are copied; in video mode the two frames are saved as PNG, for example `GX010123_frame000250.png`.
+   - **Play** runs through the frames and turns into a **Pause** button. The speed is set in frames per second with the **Speed** slider, or by typing a value in the fps box next to it. For videos it starts at the video's own frame rate. When the computer can't draw every frame at the chosen speed, frames are skipped so the video still plays at that speed. Playback stops at the last frame, and Play is disabled while recording.
+5. Press **Record** (toolbar, or **Annotate > Record**) and enter your initials. The button turns red while recording, and the status bar shows the annotator. The species buttons and the measuring tools are enabled while recording; **Measure Target** is shown only while recording in stereo mode, and **Link Target**, **Edit Species** and **Delete Link** only while recording. A selected species button is filled with its color.
+6. **File > Copy Images To...** saves the current pair. Image files are copied; in video mode the two frames are saved as PNG, for example `GX010123_frame000250.png`.
 
 ### Marking and measuring fish
 

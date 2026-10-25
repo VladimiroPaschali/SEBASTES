@@ -2,6 +2,7 @@ rd /S /Q .\dist\application
 rd /S /Q .\build\application
 rem pyinstaller --windowed --icon=resources\fish.ico --version-file=version.txt CamtrawlBrowser.pyw
 pyinstaller SEBASTES.spec
+rem /E copies the subfolders too: resources\icons holds the SVG icons that theme.py draws
 md .\dist\application\resources
 xcopy /E resources .\dist\application\resources
 md .\dist\application\schema
