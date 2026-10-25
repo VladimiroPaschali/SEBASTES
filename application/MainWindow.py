@@ -13,6 +13,8 @@ import cv2
 from math import *
 import traceback
 import glob
+import getpass
+import pathlib
 import re
 import random
 import sqlite3
@@ -177,8 +179,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.matchThresholdEdit.setText('30')
         self.frameBox.returnPressed.connect(self.getFrame)
         self.stereoOnlyCheckBox.setChecked(False)
-        self.bkpDep=None
-        self.bkpDepPath=None
+        self.lockfile=None
+        self.lockPath=None
+        self.leftPB=None
+        self.rightPB=None
         self.camtrawlMetadataFlag=False
         self.videoMode=False
         self.videoSources={}
@@ -758,124 +762,220 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         QMessageBox.warning(self, "ERROR", txt)
 
 
-    def loadDeployment(self):
-        # close the previous deployment , if any
-        if not self.deployment==None:
-            self.bkpDep=self.deployment
-            self.bkpDepPath=self.deploymentPath
-        #  get the deployment directory
-        dirDlg = QFileDialog(self)
-        self.deploymentPath = dirDlg.getExistingDirectory(self, 'Select Deployment Directory', self.__dataDir,
-                                              QFileDialog.Option.ShowDirsOnly)
-        if (self.deploymentPath == ''):
-            if not self.bkpDep==None: # we bailed on loading a new deployment
-                self.deploymentPath=self.bkpDepPath # get us back where we were
-                return
-                
-        else:
-            if not self.deployment==None:# close out existing deployment if there is one
-                if not self.dataDB == None:
-                    self.writeFrameData()
-                    self.dataDB.dbClose()
-                    self.writeDatatoCSV()
-                    # must clear out everything
-                    self.activeProfile=None
-                    
+    def userName(self):
+        try:
+            return getpass.getuser()
+        except Exception:
+            return 'unknown'
 
-            #  update the application settings with the data directory
-
-            self.deployment = self.deploymentPath.split('/')[-1]
-            self.sourcePath = QDir(self.deploymentPath)
-            self.sourcePath.cdUp()
-            self.__dataDir = self.sourcePath.path()
-            self.dataPath = self.sourcePath.path()+ '/' +self.deployment + '/' + "data" + '/'
-            # check for lock state
-            if QFile(self.dataPath + '/'+'*.lck').exists():
-                # we are locked
-                # get user name
-                lockfile=glob.glob(self.dataPath + '/'+'*.lck')
-                lockuser=lockfile[:-4]
-                # what's my username?
-                username = os.getlogin()
-                if username==lockuser:# i have this open, must have crashed or something.  delete lockfile and continue
-                    os.remove(self.dataPath + '/'+lockfile)
-                else:# stop from oopening!
-                    QMessageBox.warning(self, "ERROR", username+" has this deployment open. Go check with them.")
-                    return
-                    
-            # make a lockfile
+    def storedProfile(self, dbFile, deployment):
+        '''
+        storedProfile returns the profile saved with a deployment in its data database, or None.
+        The file is only read, so the deployment that is open is not touched.
+        '''
+        if not os.path.exists(dbFile):
+            return None
+        try:
+            conn=sqlite3.connect(pathlib.Path(dbFile).resolve().as_uri()+'?mode=ro', uri=True)
             try:
-                username = os.getlogin()
-                self.lockfile=open(self.dataPath + '/'+username+".lck", "w")
-            except:
+                row=conn.execute("SELECT profile FROM deployment WHERE deployment_ID=?", (deployment,)).fetchone()
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            return None
+        if row and row[0]:
+            return row[0]
+        return None
+
+    def createLock(self):
+        '''
+        createLock makes the lock file that tells other users this deployment is open.
+        '''
+        try:
+            self.lockPath=self.dataPath+self.userName()+".lck"
+            self.lockfile=open(self.lockPath, "w")
+        except OSError:
+            self.lockPath=None
+            self.lockfile=None
+
+    def releaseLock(self):
+        '''
+        releaseLock closes and removes the lock file of the deployment that was open, if any.
+        '''
+        if self.lockfile is not None:
+            try:
+                self.lockfile.close()
+            except OSError:
                 pass
+            self.lockfile=None
+        if self.lockPath:
+            try:
+                os.remove(self.lockPath)
+            except OSError:
                 pass
+            self.lockPath=None
 
-            # get projects
-            dlg=selectprojectdlg.SelectProjectDlg(self)
-            if dlg.exec():
-                self.activeProject=dlg.selectedProject
-                if self.activeProject==None:
-                    QMessageBox.warning(self, "ERROR", "You have to select a Project to load deployment.")
-                    return 
-                self.projectDict=dlg.selectedProjectDict
-            else:
-                QMessageBox.warning(self, "ERROR", "You have to select a Project to load deployment.")
-                return 
+    def closeDeployment(self):
+        '''
+        closeDeployment saves and closes the deployment that is open, if any.
+        '''
+        self.stopPlay()
+        if self.dataDB is not None:
+            self.writeFrameData()
+            self.dataDB.dbClose()
+            self.writeDatatoCSV()
+            self.dataDB=None
+        self.releaseLock()
+        # must clear out everything
+        self.activeProfile=None
 
-            #  check if the database folder exists
-            self.speciesCollection=self.projectDict['species_collection']
-            self.metadataGroup=self.projectDict['metadata_group']
+    def unloadDeployment(self):
+        '''
+        unloadDeployment leaves SEBASTES as at start-up when a deployment could not be loaded, so
+        that another one can be chosen. The reason has been shown to the user already.
+        '''
+        self.stopPlay()
+        if self.dataDB is not None:
+            self.dataDB.dbClose()
+            self.dataDB=None
+        self.releaseLock()
+        for video in self.videoSources.values():
+            video.release()
+        self.videoSources={}
+        # progress bars of a load that stopped half way
+        for progressBar in [self.leftPB, self.rightPB]:
+            if progressBar is not None:
+                self.statusBar.removeWidget(progressBar)
+        self.leftPB=None
+        self.rightPB=None
+        self.deployment=None
+        self.activeProfile=None
+        self.noLoad=True
+        self.recordBtn.setChecked(False)
+        self.recordBtn.setEnabled(False)
+        self.playBtn.setEnabled(False)
+        self.imageSlider.setEnabled(True)
+        for widget in self.recordEnableWidgets:
+            widget.setEnabled(False)
+        for widget in self.recordOnlyWidgets:
+            widget.hide()
+        for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
+            dock.hide()
+        self.deploymentBox.setText('')
+        self.clearMarks()
+        for obj in [self.gvLeft, self.gvRight]:
+            obj.clearViewer()
 
-            ################   HERE we will open a local "data db" ######################
+    def loadDeployment(self):
+        #  get the deployment directory
+        deploymentPath = QFileDialog.getExistingDirectory(self, 'Select Deployment Directory', self.__dataDir,
+                                              QFileDialog.Option.ShowDirsOnly)
+        if deploymentPath == '':
+            return
+        deployment = deploymentPath.split('/')[-1]
+        sourcePath = QDir(deploymentPath)
+        sourcePath.cdUp()
+        self.__dataDir = sourcePath.path()
+        dataPath = sourcePath.path()+ '/' +deployment + '/' + "data" + '/'
 
-            #  check if the local SQLite database file exists
-            if QDir(self.dataPath).exists():
-                #  check if the SQLite database file exists
-                if QFile(self.dataPath + self.activeProject+'_' + self.deployment+'.db').exists():
-                    #  try to open the database
-                    try:
-                        self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
-                    except:
-                        QMessageBox.warning(self, "ERROR", "There's something amiss with the data folder. You need to clear this up to access this deployment.")
-                        return
-                    # check for existing profile in profile db
-                    try:
-                        self.dataDB.dbOpen()
-                    except:
-                        self.showError()
-                        return
-                
-                elif QFile(self.dataPath +  self.deployment+'.db').exists():# legacy database
-                    # rename file to current db naming convention with the project 
-                    QFile().rename(self.dataPath +  self.deployment+'.db', self.dataPath + self.activeProject+'_' + self.deployment+'.db')
-                    #  try to open the database
-                    try:
-                        self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
-                    except:
-                        QMessageBox.warning(self, "ERROR", "There's something amiss with the data folder. You need to clear this up to access this deployment.")
-                        return
-                    # check for existing profile in profile db
-                    try:
-                        self.dataDB.dbOpen()
-                    except:
-                        self.showError()
-                        return
-                else: # we have a new project, lets make a new db file, shall we?
-                    try:
-                        self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
-                        self.dataDB.dbOpen()
-                        if self.dataDB.db.isOpen():
-                            self.makeDB()
-                        else:
-                            QMessageBox.warning(self, "ERROR", "Can't create local database.")
-                            return 
-                    except:
-                        self.showError()
-                        return
-            else:# a new db file is needed - this is the first time we are opening this drop
-                # make the folder
-                QDir().mkdir(self.dataPath)
+        # Everything that can be cancelled or refused comes first: the deployment that is open
+        # stays as it is until the new one is committed to below.
+        # check for lock state
+        username = self.userName()
+        ownLocks = []
+        for lockPath in glob.glob(glob.escape(dataPath) + '*.lck'):
+            lockUser = os.path.splitext(os.path.basename(lockPath))[0]
+            if lockUser != username:# stop from oopening!
+                QMessageBox.warning(self, "ERROR", lockUser+" has this deployment open. Go check with them.")
+                return
+            # i have this open, must have crashed or something.  the lockfile is replaced below
+            ownLocks.append(lockPath)
+
+        # get projects
+        dlg=selectprojectdlg.SelectProjectDlg(self)
+        if not dlg.exec() or dlg.selectedProject==None:
+            QMessageBox.warning(self, "ERROR", "You have to select a Project to load deployment.")
+            return
+        project=dlg.selectedProject
+        projectDict=dlg.selectedProjectDict
+
+        # the profile saved with this deployment, else ask for one
+        profile=self.storedProfile(dataPath+project+'_'+deployment+'.db', deployment)
+        if not profile:
+            profile=self.storedProfile(dataPath+deployment+'.db', deployment)# legacy database
+        newProfile=not profile
+        if newProfile:
+            dlg=makeseldlg.MakeSelDlg(self,  'profile', 'active')
+            if not dlg.exec():
+                QMessageBox.warning(self, "ERROR", "Need a profile to work.")
+                return
+            profile=dlg.value
+            query=self.appDB.dbQuery("SELECT value FROM PROFILE_SETTINGS WHERE profile='"+profile+"' AND setting='LeftCameraImagePath'")
+            leftPath, =query.first()
+            if leftPath==None or not QDir(deploymentPath + '/' + leftPath + '/').exists():
+                QMessageBox.warning(self, "ERROR", "This is not a valid deployment folder.")
+                return
+
+        # go ahead: close the deployment that is open and switch to the new one
+        self.closeDeployment()
+        for lockPath in ownLocks:
+            try:
+                os.remove(lockPath)
+            except OSError:
+                pass
+        self.deploymentPath = deploymentPath
+        self.deployment = deployment
+        self.sourcePath = sourcePath
+        self.dataPath = dataPath
+        self.activeProject = project
+        self.projectDict = projectDict
+        if not self.openDeployment(profile, newProfile):
+            self.unloadDeployment()
+
+    def openDeployment(self, profile, newProfile):
+        '''
+        openDeployment opens the data database of the deployment chosen in loadDeployment, loads
+        its profile and shows it. It returns False, after telling the user why, when it can't.
+        '''
+        #  check if the database folder exists
+        self.speciesCollection=self.projectDict['species_collection']
+        self.metadataGroup=self.projectDict['metadata_group']
+
+        ################   HERE we will open a local "data db" ######################
+
+        #  check if the local SQLite database file exists
+        if QDir(self.dataPath).exists():
+            #  check if the SQLite database file exists
+            if QFile(self.dataPath + self.activeProject+'_' + self.deployment+'.db').exists():
+                #  try to open the database
+                try:
+                    self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
+                except:
+                    QMessageBox.warning(self, "ERROR", "There's something amiss with the data folder. You need to clear this up to access this deployment.")
+                    return False
+                # check for existing profile in profile db
+                try:
+                    self.dataDB.dbOpen()
+                except:
+                    self.showError()
+                    return False
+
+            elif QFile(self.dataPath +  self.deployment+'.db').exists():# legacy database
+                # rename file to current db naming convention with the project 
+                QFile().rename(self.dataPath +  self.deployment+'.db', self.dataPath + self.activeProject+'_' + self.deployment+'.db')
+                #  try to open the database
+                try:
+                    self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
+                except:
+                    QMessageBox.warning(self, "ERROR", "There's something amiss with the data folder. You need to clear this up to access this deployment.")
+                    return False
+                # check for existing profile in profile db
+                try:
+                    self.dataDB.dbOpen()
+                except:
+                    self.showError()
+                    return False
+            else: # we have a new project, lets make a new db file, shall we?
                 try:
                     self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
                     self.dataDB.dbOpen()
@@ -883,147 +983,136 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         self.makeDB()
                     else:
                         QMessageBox.warning(self, "ERROR", "Can't create local database.")
-                        return 
+                        return False
                 except:
                     self.showError()
-                    return
-                        
-            # add annotator and time stamp field if it doesnt exist
-            query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
-            fields=[]
-            for field in query:
-                fields.append(field[1])
-            if not 'ANNOTATOR' in fields:
-                self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN ANNOTATOR TEXT;")
-                self.dataDB.dbExec("ALTER TABLE FRAME_METADATA ADD COLUMN ANNOTATOR TEXT;")
-                self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN ANNOTATOR TEXT;")
-                self.dataDB.dbExec("ALTER TABLE BOUNDING_BOXES ADD COLUMN ANNOTATOR TEXT;")
-                
-            # check for timastamp field in db, if not, add it
-            query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
-            fields=[]
-            for field in query:
-                fields.append(field[1])
-            if not 'TIME_STAMP' in fields:
-                self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN TIME_STAMP TEXT;")
-                self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN TIME_STAMP TEXT;")
-                
-            # check for timastamp field in db, if not, add it
-            query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
-            fields=[]
-            for field in query:
-                fields.append(field[1])
-            if not 'PROJECT' in fields:
-                self.dataDB.dbExec("ALTER TABLE DEPLOYMENT ADD COLUMN PROJECT TEXT;")
-                self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN PROJECT TEXT;")
-                self.dataDB.dbExec("ALTER TABLE FRAME_METADATA ADD COLUMN PROJECT TEXT;")
-                self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN PROJECT TEXT;")
-                self.dataDB.dbExec("ALTER TABLE BOUNDING_BOXES ADD COLUMN PROJECT TEXT;")
-                
-            # if they do not exist, create points and lengths tables and move the data over from targets.  Then change targets table too...
-            if not "POINTS" in self.dataDB.db.tables():
-                file=open('../db/v3ChangesToDB.db.sql')
-                sql_script=file.read()
-                statements=sql_script.split(';')
-                for statement in statements:
-                    if statement !='':
-                        statement=statement.replace('\t', ' ')
-                        statement=statement.replace('\n', '')
-                        try:
-                            self.dataDB.dbExec(statement)
-                        except:
-                            pass
-                self.dataDB.dbExec("BEGIN TRANSACTION;")
-                # move the data from targerts
-                query = self.dataDB.dbQuery("SELECT frame_number, target_number,  LX, LY, RX, RY, Range, Error, Length, LHX,LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ FROM targets WHERE deployment_id='"+self.deployment+"'")
-                for frame_number, target_number, LX, LY, RX, RY, Range, Error, Length, LHX, LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ in query:
-
-                    # this is point data
-                    if LX == None:# this is only one point in one image
-                        LX='NULL'
-                        LY='NULL'
-                        HZ='NULL'
-                        HX='NULL'
-                        HY='NULL'
-                        Range='NULL'
-                        Error='NULL'
-                        point_label='single_image_mark'
-                    elif RX == None:
-                        RX='NULL'
-                        RY='NULL'
-                        HZ='NULL'
-                        HX='NULL'
-                        HY='NULL'
-                        Range='NULL'
-                        Error='NULL'
-                        point_label='single_image_mark'
-                    else:
-                        point_label='range_to_target'
-                    sql="INSERT INTO points (project, deployment_ID,frame_number, target_number,  point_label, LX, LY, RX, RY, X, Y, Z, Range, Error)  VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+point_label+"',"+LX+","+LY+","+RX+","+RY+","+HX+","+HY+","+HZ+","+Range+","+Error+")"
-                    self.dataDB.dbExec(sql)
-                    if not Length==None:
-                        # this is  line data
-                        line_label='length'
-                        self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
-                                        "VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+line_label+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+","+
-                                        RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
-                self.dataDB.dbExec("COMMIT;")
-                # now delete target table extra fields
-                dropfileds=['LX','LY','RX','RY','Range','Error','Length','LHX','LHY','LTX','LTY','RHX','RHY','RTX','RTY','HX','HY','HZ','TX','TY','TZ']
-                for field in dropfileds:
-                    self.dataDB.dbExec("ALTER TABLE TARGETS DROP COLUMN "+field+';')
-                
-            # measurement names
-            query = self.dataDB.dbQuery("PRAGMA table_info('LINES')")
-            fields=[]
-            for field in query:
-                fields.append(field[1])
-            if not 'NAME' in fields:
-                self.dataDB.dbExec("ALTER TABLE LINES ADD COLUMN NAME TEXT;")
-            # now select profile
-            if not self.activeProfile:
-                # check to see if theres already an entry frop this dep
-                query=self.dataDB.dbQuery("SELECT profile FROM deployment WHERE deployment_ID = '"+self.deployment+"'")
-                profile, =query.first()
-                if profile:
-                    self.activeProfile=profile
-                    if not self.loadProfile():
-                        QMessageBox.warning(self, "ERROR", "There's something amiss with the profile settings.  Have a peek!")
-                        self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+self.activeProject+"' and deployment_id='"+self.deployment+"'")
-                        return
+                    return False
+        else:# a new db file is needed - this is the first time we are opening this drop
+            # make the folder
+            QDir().mkdir(self.dataPath)
+            try:
+                self.dataDB = dbConnection.dbConnection(self.dataPath + self.activeProject+'_' + self.deployment+'.db', '', '',label='dataDB', driver="QSQLITE")
+                self.dataDB.dbOpen()
+                if self.dataDB.db.isOpen():
+                    self.makeDB()
                 else:
-                    query=self.appDB.dbQuery("SELECT count(*) FROM PROFILES WHERE active='Yes'")
-                    val, =query.first()
+                    QMessageBox.warning(self, "ERROR", "Can't create local database.")
+                    return False
+            except:
+                self.showError()
+                return False
 
-                    dlg=makeseldlg.MakeSelDlg(self,  'profile', 'active')
-                    if dlg.exec():
-                        self.activeProfile=dlg.value
-                        if not self.loadProfile():
-                            QMessageBox.warning(self, "ERROR", "There's something amiss with the profile settings.  Have a peek!")
-                            self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+self.activeProject+"' and deployment_id='"+self.deployment+"'")
-                            return
-                            
-                        if not QDir(self.deploymentPath + '/' + self.settings['LeftCameraImagePath']+ '/').exists():
-                            QMessageBox.warning(self, "ERROR", "This is not a valid deployment folder.")
-                            # delete profile from deployments table in project db
-                            self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+self.activeProject+"' and deployment_id='"+self.deployment+"'")
-                            return
-                            
-                        #were good to go,  put it into the db
-                        time_now=QDateTime().currentDateTime()
-                        self.dataDB.dbExec("INSERT INTO deployment (project, deployment_ID,last_opened,profile)"+
-                        " VALUES('"+self.activeProject+"', '"+self.deployment+"','"+time_now.toString()+"','"+self.activeProfile+"')")
+        self.createLock()
 
-                    else:
-                        QMessageBox.warning(self, "ERROR", "Need a profile to work.")
-                        return 
+        # add annotator and time stamp field if it doesnt exist
+        query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
+        fields=[]
+        for field in query:
+            fields.append(field[1])
+        if not 'ANNOTATOR' in fields:
+            self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN ANNOTATOR TEXT;")
+            self.dataDB.dbExec("ALTER TABLE FRAME_METADATA ADD COLUMN ANNOTATOR TEXT;")
+            self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN ANNOTATOR TEXT;")
+            self.dataDB.dbExec("ALTER TABLE BOUNDING_BOXES ADD COLUMN ANNOTATOR TEXT;")
 
-            self.loadEnhancements()
+        # check for timastamp field in db, if not, add it
+        query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
+        fields=[]
+        for field in query:
+            fields.append(field[1])
+        if not 'TIME_STAMP' in fields:
+            self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN TIME_STAMP TEXT;")
+            self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN TIME_STAMP TEXT;")
 
-            self.appSettings.setValue('self.dataPath', self.deploymentPath)
-            if not self.setupDeployment():
-                self.close()
-                
+        # check for timastamp field in db, if not, add it
+        query = self.dataDB.dbQuery("PRAGMA table_info('TARGETS')")
+        fields=[]
+        for field in query:
+            fields.append(field[1])
+        if not 'PROJECT' in fields:
+            self.dataDB.dbExec("ALTER TABLE DEPLOYMENT ADD COLUMN PROJECT TEXT;")
+            self.dataDB.dbExec("ALTER TABLE TARGETS ADD COLUMN PROJECT TEXT;")
+            self.dataDB.dbExec("ALTER TABLE FRAME_METADATA ADD COLUMN PROJECT TEXT;")
+            self.dataDB.dbExec("ALTER TABLE FRAMES ADD COLUMN PROJECT TEXT;")
+            self.dataDB.dbExec("ALTER TABLE BOUNDING_BOXES ADD COLUMN PROJECT TEXT;")
+
+        # if they do not exist, create points and lengths tables and move the data over from targets.  Then change targets table too...
+        if not "POINTS" in self.dataDB.db.tables():
+            file=open('../db/v3ChangesToDB.db.sql')
+            sql_script=file.read()
+            statements=sql_script.split(';')
+            for statement in statements:
+                if statement !='':
+                    statement=statement.replace('\t', ' ')
+                    statement=statement.replace('\n', '')
+                    try:
+                        self.dataDB.dbExec(statement)
+                    except:
+                        pass
+            self.dataDB.dbExec("BEGIN TRANSACTION;")
+            # move the data from targerts
+            query = self.dataDB.dbQuery("SELECT frame_number, target_number,  LX, LY, RX, RY, Range, Error, Length, LHX,LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ FROM targets WHERE deployment_id='"+self.deployment+"'")
+            for frame_number, target_number, LX, LY, RX, RY, Range, Error, Length, LHX, LHY, LTX, LTY, RHX, RHY, RTX, RTY, HX, HY, HZ, TX, TY, TZ in query:
+
+                # this is point data
+                if LX == None:# this is only one point in one image
+                    LX='NULL'
+                    LY='NULL'
+                    HZ='NULL'
+                    HX='NULL'
+                    HY='NULL'
+                    Range='NULL'
+                    Error='NULL'
+                    point_label='single_image_mark'
+                elif RX == None:
+                    RX='NULL'
+                    RY='NULL'
+                    HZ='NULL'
+                    HX='NULL'
+                    HY='NULL'
+                    Range='NULL'
+                    Error='NULL'
+                    point_label='single_image_mark'
+                else:
+                    point_label='range_to_target'
+                sql="INSERT INTO points (project, deployment_ID,frame_number, target_number,  point_label, LX, LY, RX, RY, X, Y, Z, Range, Error)  VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+point_label+"',"+LX+","+LY+","+RX+","+RY+","+HX+","+HY+","+HZ+","+Range+","+Error+")"
+                self.dataDB.dbExec(sql)
+                if not Length==None:
+                    # this is  line data
+                    line_label='length'
+                    self.dataDB.dbExec("INSERT INTO lines (project, deployment_ID,frame_number, target_number, line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2, X1, Y1, Z1, X2,Y2, Z2, Length, Error)  "+
+                                    "VALUES('"+self.activeProject+"','"+self.deployment+"',"+frame_number+","+target_number+",'"+line_label+"',"+LHX+","+LHY+","+LTX+","+LTY+","+RHX+","+RHY+","+
+                                    RTX+","+RTY+","+HX+","+HY+","+HZ+","+TX+","+TY+","+TZ+","+Length+","+Error+")")
+            self.dataDB.dbExec("COMMIT;")
+            # now delete target table extra fields
+            dropfileds=['LX','LY','RX','RY','Range','Error','Length','LHX','LHY','LTX','LTY','RHX','RHY','RTX','RTY','HX','HY','HZ','TX','TY','TZ']
+            for field in dropfileds:
+                self.dataDB.dbExec("ALTER TABLE TARGETS DROP COLUMN "+field+';')
+
+        # measurement names
+        query = self.dataDB.dbQuery("PRAGMA table_info('LINES')")
+        fields=[]
+        for field in query:
+            fields.append(field[1])
+        if not 'NAME' in fields:
+            self.dataDB.dbExec("ALTER TABLE LINES ADD COLUMN NAME TEXT;")
+        # now load the profile
+        self.activeProfile=profile
+        if not self.loadProfile():
+            QMessageBox.warning(self, "ERROR", "There's something amiss with the profile settings.  Have a peek!")
+            self.dataDB.dbExec("DELETE FROM deployment WHERE project='"+self.activeProject+"' and deployment_id='"+self.deployment+"'")
+            return False
+        if newProfile:
+            #were good to go,  put it into the db
+            time_now=QDateTime().currentDateTime()
+            self.dataDB.dbExec("INSERT INTO deployment (project, deployment_ID,last_opened,profile)"+
+            " VALUES('"+self.activeProject+"', '"+self.deployment+"','"+time_now.toString()+"','"+self.activeProfile+"')")
+
+        self.loadEnhancements()
+
+        self.appSettings.setValue('self.dataPath', self.deploymentPath)
+        return bool(self.setupDeployment())
+
     def loadEnhancements(self):
         try:
             if QDir(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/').exists():
@@ -1184,7 +1273,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.imageSlider.setSingleStep(1)
             self.recordBtn.setEnabled(True)
             self.toggleRecord()
-            self.imageSlider.setValue(1)
+            if self.imageSlider.value()==1:
+                # the slider is already there (an earlier deployment) and sends no valueChanged
+                self.__changeImage()
+            else:
+                self.imageSlider.setValue(1)
             self.playBtn.setEnabled(True)
             self.measurementsDock.setDeployment(self.dataDB, self.deployment)
             if self.measurementsDock.isHidden():
@@ -3794,21 +3887,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # write out excel file from db
         if self.appDB:
             self.appDB.dbClose()
-        if self.dataDB:
-            self.writeFrameData()
-            self.dataDB.dbClose()
-            self.writeDatatoCSV()
-            
-        # remove lockfile
-        try:
-            username = os.getlogin()
-            lockfile=self.dataPath + '/'+username+'.lck'
-
-            if QFile(lockfile).exists():
-                self.lockfile.close()
-                os.remove(lockfile)
-        except:
-            pass
+        # save and close the deployment, and remove its lockfile
+        self.closeDeployment()
         event.accept()
 
 
