@@ -178,10 +178,10 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
 
 ## Annotating
 
-1. **File > Open Deployment...** (Ctrl+O, or **Open** in the toolbar) and select the deployment folder.
+1. **File > Open Deployment...** (Ctrl+O, or **Open** in the toolbar, or the button on the welcome page) and select the deployment folder. Until a deployment is open, the window shows a welcome page with a photo, the first steps and the last 8 deployments you opened: double-click one, or select it and press Enter, to open it again without choosing its folder.
 2. Select the project.
 3. The first time you open a deployment, select its profile. SEBASTES remembers the profile for that deployment.
-4. Move through the frames with the bar under the images. Its buttons do the same as the keys, and the sample interval is set in the same bar (**Every ... frames, offset ...**):
+4. Move through the frames with the bar under the images. The timeline is its top row: the ticks on it mark the frames that have a measurement (tall ticks) and the frames that have targets only (short ticks). The second row has the buttons, which do the same as the keys, the frame number (with the time in the video, `hours:minutes:seconds.hundredths`, for videos) and the sample interval and speed (**Every ... frames, offset ...**, **Speed**). In a narrow window the bar gives up the speed slider (the speed stays in its box), the time, the offset and then the sample interval; while recording, when there is no room for both, the speed goes before the sample interval:
    - **Right / Left arrow**, or the `<<` and `>>` buttons: move by the number of frames set in **Every ... frames**.
    - **Ctrl + Right / Left**, or the `|<` and `>|` buttons next to Play: move one frame.
    - The buttons at the ends of the row go to the first frame and to the last frame; the last button goes to the last frame that has data (Record only).

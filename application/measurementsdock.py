@@ -15,6 +15,8 @@ class MeasurementsDock(QDockWidget):
 
     #  frame and target number of the clicked row
     goToTarget = Signal(int, int)
+    #  the table was reloaded from the data database
+    refreshed = Signal()
 
     def __init__(self, parent=None):
         super(MeasurementsDock, self).__init__('Measurements', parent)
@@ -76,6 +78,7 @@ class MeasurementsDock(QDockWidget):
         self.table.setSortingEnabled(True)
         self.table.scrollToBottom()
         self.filling = False
+        self.refreshed.emit()
 
 
     def preferredWidth(self):

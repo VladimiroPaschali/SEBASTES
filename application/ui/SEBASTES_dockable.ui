@@ -42,390 +42,243 @@
      <number>0</number>
     </property>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="1,1">
-      <property name="spacing">
-       <number>6</number>
+     <widget class="QStackedWidget" name="imageStack">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
       </property>
-      <property name="leftMargin">
-       <number>6</number>
+      <property name="currentIndex">
+       <number>1</number>
       </property>
-      <property name="topMargin">
-       <number>6</number>
-      </property>
-      <property name="rightMargin">
-       <number>6</number>
-      </property>
-      <property name="bottomMargin">
-       <number>6</number>
-      </property>
-      <item>
-       <widget class="QFrame" name="frameLeft">
-        <property name="frameShape">
-         <enum>QFrame::NoFrame</enum>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_9">
-         <property name="spacing">
-          <number>2</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_9">
-           <property name="spacing">
-            <number>4</number>
-           </property>
-           <property name="leftMargin">
-            <number>2</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="leftCaption">
-             <property name="font">
-              <font>
-               <weight>75</weight>
-               <bold>true</bold>
-              </font>
-             </property>
-             <property name="text">
-              <string>Left camera</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="horizontalSpacer">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QToolButton" name="adjLeftBtn">
-             <property name="toolTip">
-              <string>Adjust the left image (brightness, contrast, gamma)</string>
-             </property>
-             <property name="focusPolicy">
-              <enum>Qt::NoFocus</enum>
-             </property>
-             <property name="iconSize">
-              <size>
-               <width>18</width>
-               <height>18</height>
-              </size>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QImageViewer" name="gvLeft"/>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QFrame" name="frameRight">
-        <property name="frameShape">
-         <enum>QFrame::NoFrame</enum>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_8">
-         <property name="spacing">
-          <number>2</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_10">
-           <property name="spacing">
-            <number>4</number>
-           </property>
-           <property name="leftMargin">
-            <number>2</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="rightCaption">
-             <property name="font">
-              <font>
-               <weight>75</weight>
-               <bold>true</bold>
-              </font>
-             </property>
-             <property name="text">
-              <string>Right camera</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="horizontalSpacer_5">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QToolButton" name="adjRightBtn">
-             <property name="toolTip">
-              <string>Adjust the right image (brightness, contrast, gamma)</string>
-             </property>
-             <property name="focusPolicy">
-              <enum>Qt::NoFocus</enum>
-             </property>
-             <property name="iconSize">
-              <size>
-               <width>18</width>
-               <height>18</height>
-              </size>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QImageViewer" name="gvRight"/>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
+      <widget class="QWidget" name="viewPage">
+           <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="1,1">
+            <property name="spacing">
+             <number>6</number>
+            </property>
+            <property name="leftMargin">
+             <number>6</number>
+            </property>
+            <property name="topMargin">
+             <number>6</number>
+            </property>
+            <property name="rightMargin">
+             <number>6</number>
+            </property>
+            <property name="bottomMargin">
+             <number>6</number>
+            </property>
+            <item>
+             <widget class="QFrame" name="frameLeft">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <layout class="QVBoxLayout" name="verticalLayout_9">
+               <property name="spacing">
+                <number>2</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_9">
+                 <property name="spacing">
+                  <number>4</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="leftCaption">
+                   <property name="font">
+                    <font>
+                     <weight>75</weight>
+                     <bold>true</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Left camera</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QToolButton" name="adjLeftBtn">
+                   <property name="toolTip">
+                    <string>Adjust the left image (brightness, contrast, gamma)</string>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>18</width>
+                     <height>18</height>
+                    </size>
+                   </property>
+                   <property name="autoRaise">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QImageViewer" name="gvLeft"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="frameRight">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <layout class="QVBoxLayout" name="verticalLayout_8">
+               <property name="spacing">
+                <number>2</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_10">
+                 <property name="spacing">
+                  <number>4</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="rightCaption">
+                   <property name="font">
+                    <font>
+                     <weight>75</weight>
+                     <bold>true</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Right camera</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_5">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QToolButton" name="adjRightBtn">
+                   <property name="toolTip">
+                    <string>Adjust the right image (brightness, contrast, gamma)</string>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>18</width>
+                     <height>18</height>
+                    </size>
+                   </property>
+                   <property name="autoRaise">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QImageViewer" name="gvRight"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+      </widget>
+      <widget class="WelcomePage" name="welcomePage"/>
+     </widget>
     </item>
     <item>
      <widget class="QFrame" name="navBar">
       <property name="frameShape">
        <enum>QFrame::NoFrame</enum>
       </property>
-      <layout class="QHBoxLayout" name="navLayout">
+      <layout class="QVBoxLayout" name="navLayout">
        <property name="spacing">
-        <number>4</number>
+        <number>2</number>
        </property>
        <property name="leftMargin">
         <number>8</number>
        </property>
        <property name="topMargin">
-        <number>4</number>
+        <number>6</number>
        </property>
        <property name="rightMargin">
         <number>8</number>
        </property>
        <property name="bottomMargin">
-        <number>4</number>
+        <number>6</number>
        </property>
        <item>
-        <widget class="QToolButton" name="firstBtn">
-         <property name="toolTip">
-          <string>First frame</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="prevSampleBtn">
-         <property name="toolTip">
-          <string>Previous sampled frame (Left)</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="prevFrameBtn">
-         <property name="toolTip">
-          <string>Previous frame (Ctrl+Left)</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="playBtn">
-         <property name="minimumSize">
-          <size>
-           <width>88</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>16</width>
-           <height>16</height>
-          </size>
-         </property>
-         <property name="toolTip">
-          <string>Play or pause</string>
-         </property>
-         <property name="text">
-          <string>Play</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="nextFrameBtn">
-         <property name="toolTip">
-          <string>Next frame (Ctrl+Right)</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="nextSampleBtn">
-         <property name="toolTip">
-          <string>Next sampled frame (Right)</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="lastBtn">
-         <property name="toolTip">
-          <string>Last frame</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="lastFrameBtn">
-         <property name="toolTip">
-          <string>Go to the last sampled frame (the last frame with annotations)</string>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>18</width>
-           <height>18</height>
-          </size>
-         </property>
-         <property name="autoRaise">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QSlider" name="imageSlider">
+        <widget class="TimelineSlider" name="imageSlider">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -433,10 +286,10 @@
           </sizepolicy>
          </property>
          <property name="minimumSize">
-          <size>
-           <width>60</width>
-           <height>0</height>
-          </size>
+          <size><width>60</width><height>22</height></size>
+         </property>
+         <property name="toolTip">
+          <string>Timeline: the ticks mark the frames that have measurements (tall) or targets (short)</string>
          </property>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -444,267 +297,436 @@
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="frameLabel">
-         <property name="text">
-          <string>Frame</string>
+        <layout class="QHBoxLayout" name="navRow">
+         <property name="spacing">
+          <number>4</number>
          </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="frameBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
+         <property name="leftMargin">
+          <number>0</number>
          </property>
-         <property name="minimumSize">
-          <size>
-           <width>64</width>
-           <height>0</height>
-          </size>
+         <property name="topMargin">
+          <number>0</number>
          </property>
-         <property name="maximumSize">
-          <size>
-           <width>64</width>
-           <height>16777215</height>
-          </size>
+         <property name="rightMargin">
+          <number>0</number>
          </property>
-         <property name="toolTip">
-          <string>Frame number: type a number and press Enter</string>
+         <property name="bottomMargin">
+          <number>0</number>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="maxFrame">
-         <property name="text">
-          <string>/ 0</string>
-         </property>
-         <property name="toolTip">
-          <string>Last frame number</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QWidget" name="sampleBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>1</width>
-           <height>0</height>
-          </size>
-         </property>
-         <layout class="QHBoxLayout" name="sampleLayout">
-          <property name="spacing">
-           <number>4</number>
-          </property>
-          <property name="leftMargin">
-           <number>14</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QLabel" name="everyLabel">
-            <property name="text">
-             <string>Every</string>
+         <item>
+          <widget class="QToolButton" name="firstBtn">
+           <property name="toolTip">
+            <string>First frame</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="prevSampleBtn">
+           <property name="toolTip">
+            <string>Previous sampled frame (Left)</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="prevFrameBtn">
+           <property name="toolTip">
+            <string>Previous frame (Ctrl+Left)</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="playBtn">
+           <property name="minimumSize">
+            <size><width>88</width><height>0</height></size>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>16</width><height>16</height></size>
+           </property>
+           <property name="toolTip">
+            <string>Play or pause</string>
+           </property>
+           <property name="text">
+            <string>Play</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="nextFrameBtn">
+           <property name="toolTip">
+            <string>Next frame (Ctrl+Right)</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="nextSampleBtn">
+           <property name="toolTip">
+            <string>Next sampled frame (Right)</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="lastBtn">
+           <property name="toolTip">
+            <string>Last frame</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="lastFrameBtn">
+           <property name="toolTip">
+            <string>Go to the last sampled frame (the last frame with annotations)</string>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="iconSize">
+            <size><width>18</width><height>18</height></size>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="navSpacerLeft">
+           <property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>0</width><height>20</height></size></property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QWidget" name="frameInfo">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size><width>1</width><height>0</height></size>
+           </property>
+           <layout class="QHBoxLayout" name="frameLayout">
+            <property name="spacing">
+             <number>4</number>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="sampleRateEdit">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+            <property name="leftMargin">
+             <number>0</number>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>44</width>
-              <height>0</height>
-             </size>
+            <property name="topMargin">
+             <number>0</number>
             </property>
-            <property name="maximumSize">
-             <size>
-              <width>44</width>
-              <height>16777215</height>
-             </size>
+            <property name="rightMargin">
+             <number>0</number>
             </property>
-            <property name="toolTip">
-             <string>Sample interval: the sample buttons and the Left and Right keys move this many frames</string>
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+            <item>
+             <widget class="QLabel" name="frameLabel">
+              <property name="text">
+               <string>Frame</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="frameBox">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size><width>64</width><height>0</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>64</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>Frame number: type a number and press Enter</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="maxFrame">
+              <property name="text">
+               <string>/ 0</string>
+              </property>
+              <property name="toolTip">
+               <string>Last frame number</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="timeLabel">
+              <property name="text">
+               <string></string>
+              </property>
+              <property name="toolTip">
+               <string>Time in the video (hours:minutes:seconds.hundredths)</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="navSpacerRight">
+           <property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>0</width><height>20</height></size></property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QWidget" name="sampleBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size><width>1</width><height>0</height></size>
+           </property>
+           <layout class="QHBoxLayout" name="sampleLayout">
+            <property name="spacing">
+             <number>4</number>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="offsetLabel">
-            <property name="text">
-             <string>frames, offset</string>
+            <property name="leftMargin">
+             <number>14</number>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="rateOffsetEdit">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+            <property name="topMargin">
+             <number>0</number>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>44</width>
-              <height>0</height>
-             </size>
+            <property name="rightMargin">
+             <number>0</number>
             </property>
-            <property name="maximumSize">
-             <size>
-              <width>44</width>
-              <height>16777215</height>
-             </size>
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-            <property name="toolTip">
-             <string>Offset of the sampled frames within the interval</string>
+            <item>
+             <widget class="QLabel" name="everyLabel">
+              <property name="text">
+               <string>Every</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="sampleRateEdit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size><width>44</width><height>0</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>44</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>Sample interval: the sample buttons and the Left and Right keys move this many frames</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="offsetLabel">
+              <property name="text">
+               <string>frames, offset</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="rateOffsetEdit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size><width>44</width><height>0</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>44</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>Offset of the sampled frames within the interval</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+              <property name="placeholderText">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QWidget" name="speedBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size><width>1</width><height>0</height></size>
+           </property>
+           <layout class="QHBoxLayout" name="speedLayout">
+            <property name="spacing">
+             <number>6</number>
             </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+            <property name="leftMargin">
+             <number>6</number>
             </property>
-            <property name="placeholderText">
-             <string>0</string>
+            <property name="topMargin">
+             <number>0</number>
             </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QWidget" name="speedBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>1</width>
-           <height>0</height>
-          </size>
-         </property>
-         <layout class="QHBoxLayout" name="speedLayout">
-          <property name="spacing">
-           <number>6</number>
-          </property>
-          <property name="leftMargin">
-           <number>6</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QFrame" name="navSeparator">
-            <property name="frameShape">
-             <enum>QFrame::VLine</enum>
+            <property name="rightMargin">
+             <number>0</number>
             </property>
-            <property name="frameShadow">
-             <enum>QFrame::Sunken</enum>
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="playSpeedLabel">
-            <property name="text">
-             <string>Speed</string>
-            </property>
-            <property name="toolTip">
-             <string>Playback speed (frames per second)</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSlider" name="playSpeedSlider">
-            <property name="minimumSize">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>100</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Playback speed (frames per second)</string>
-            </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="singleStep">
-             <number>10</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSpinBox" name="playSpeedBox">
-            <property name="minimumSize">
-             <size>
-              <width>96</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>110</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Playback speed (frames per second). Type a value to move the slider.</string>
-            </property>
-            <property name="suffix">
-             <string> fps</string>
-            </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
+            <item>
+             <widget class="QFrame" name="navSeparator">
+              <property name="frameShape">
+               <enum>QFrame::VLine</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Sunken</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="playSpeedLabel">
+              <property name="text">
+               <string>Speed</string>
+              </property>
+              <property name="toolTip">
+               <string>Playback speed (frames per second)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSlider" name="playSpeedSlider">
+              <property name="minimumSize">
+               <size><width>50</width><height>0</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>100</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>Playback speed (frames per second)</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>100</number>
+              </property>
+              <property name="singleStep">
+               <number>10</number>
+              </property>
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="playSpeedBox">
+              <property name="minimumSize">
+               <size><width>84</width><height>0</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>110</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>Playback speed (frames per second). Type a value to move the slider.</string>
+              </property>
+              <property name="suffix">
+               <string> fps</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>100</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -2336,6 +2358,16 @@ frame</string>
    <class>QImageViewer</class>
    <extends>QGraphicsView</extends>
    <header>QImageViewer.QImageViewer</header>
+  </customwidget>
+  <customwidget>
+   <class>TimelineSlider</class>
+   <extends>QSlider</extends>
+   <header>timelineslider</header>
+  </customwidget>
+  <customwidget>
+   <class>WelcomePage</class>
+   <extends>QWidget</extends>
+   <header>welcomepage</header>
   </customwidget>
  </customwidgets>
  <resources/>

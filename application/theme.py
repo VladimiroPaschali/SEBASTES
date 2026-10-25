@@ -145,6 +145,7 @@ QToolBar QToolButton:hover, QFrame#navBar QToolButton:hover { background: $hover
 QToolBar QToolButton:pressed, QFrame#navBar QToolButton:pressed { background: $pressed; }
 QToolBar QToolButton:checked, QFrame#navBar QToolButton:checked { background: $accentTint; border-color: $accentBorder; }
 QToolBar QToolButton:checked:hover, QFrame#navBar QToolButton:checked:hover { background: $accentTintHover; }
+QFrame#navBar QToolButton { padding: 4px; }
 QToolBar QToolButton:disabled, QFrame#navBar QToolButton:disabled { color: $textMuted; background: transparent; border-color: transparent; }
 
 /* two tool buttons side by side as one exclusive choice (property segment = first / last) */
@@ -176,8 +177,26 @@ QSlider#imageSlider::handle:horizontal:hover { background: $accentHover; }
 QSlider#imageSlider::sub-page:horizontal:disabled { background: $textMuted; }
 QSlider#imageSlider::handle:horizontal:disabled { background: $textMuted; }
 
+QLabel#timeLabel { color: $textMuted; }
+
 QLabel#welcomeLabel { color: $overlay; background: $overlayRgba; border-radius: 10px;
                       padding: 14px 22px; font-size: 14pt; }
+
+/* the welcome page (welcomepage.py) */
+QLabel#welcomeTitle { color: $text; font-size: 30pt; font-weight: 700; }
+QLabel#welcomeSubtitle { color: $textMuted; font-size: 13pt; }
+QLabel#welcomeHeading { color: $textMuted; font-weight: 600; }
+QLabel#welcomeHint { color: $textMuted; }
+QLabel#welcomeStep { color: $text; }
+QLabel#welcomeStepNumber { background: $accentTint; color: $accentSoft; border-radius: 12px; font-weight: 600; }
+QPushButton#welcomeOpen { color: $accentText; background: $accent; border: 1px solid $accent; border-radius: 6px;
+                          padding: 9px 24px; font-size: 11pt; font-weight: 600; }
+QPushButton#welcomeOpen:hover { background: $accentHover; border-color: $accentHover; }
+QPushButton#welcomeOpen:pressed { background: $accentHover; }
+QListWidget#recentList { background: $surface; border: 1px solid $border; border-radius: 8px; padding: 4px; outline: none; }
+QListWidget#recentList::item { border-radius: 6px; }
+QListWidget#recentList::item:hover { background: $hover; }
+QListWidget#recentList::item:selected { background: $accentTint; }
 ''')
 
 

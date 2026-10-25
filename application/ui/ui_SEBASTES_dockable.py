@@ -20,10 +20,12 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QDockWidget, QFrame,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMenu, QMenuBar, QPushButton,
     QRadioButton, QSizePolicy, QSlider, QSpacerItem,
-    QSpinBox, QStatusBar, QTabWidget, QToolButton,
-    QVBoxLayout, QWidget)
+    QSpinBox, QStackedWidget, QStatusBar, QTabWidget,
+    QToolButton, QVBoxLayout, QWidget)
 
 from QImageViewer.QImageViewer import QImageViewer
+from timelineslider import TimelineSlider
+from welcomepage import WelcomePage
 
 class Ui_SEBASTES(object):
     def setupUi(self, SEBASTES):
@@ -117,11 +119,20 @@ class Ui_SEBASTES(object):
         self.verticalLayout.setSpacing(0)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_19 = QHBoxLayout()
+        self.imageStack = QStackedWidget(self.centralwidget)
+        self.imageStack.setObjectName(u"imageStack")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(1)
+        sizePolicy.setHeightForWidth(self.imageStack.sizePolicy().hasHeightForWidth())
+        self.imageStack.setSizePolicy(sizePolicy)
+        self.viewPage = QWidget()
+        self.viewPage.setObjectName(u"viewPage")
+        self.horizontalLayout_19 = QHBoxLayout(self.viewPage)
         self.horizontalLayout_19.setSpacing(6)
         self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
         self.horizontalLayout_19.setContentsMargins(6, 6, 6, 6)
-        self.frameLeft = QFrame(self.centralwidget)
+        self.frameLeft = QFrame(self.viewPage)
         self.frameLeft.setObjectName(u"frameLeft")
         self.frameLeft.setFrameShape(QFrame.NoFrame)
         self.verticalLayout_9 = QVBoxLayout(self.frameLeft)
@@ -163,7 +174,7 @@ class Ui_SEBASTES(object):
 
         self.horizontalLayout_19.addWidget(self.frameLeft)
 
-        self.frameRight = QFrame(self.centralwidget)
+        self.frameRight = QFrame(self.viewPage)
         self.frameRight.setObjectName(u"frameRight")
         self.frameRight.setFrameShape(QFrame.NoFrame)
         self.verticalLayout_8 = QVBoxLayout(self.frameRight)
@@ -205,23 +216,43 @@ class Ui_SEBASTES(object):
 
         self.horizontalLayout_19.setStretch(0, 1)
         self.horizontalLayout_19.setStretch(1, 1)
+        self.imageStack.addWidget(self.viewPage)
+        self.welcomePage = WelcomePage()
+        self.welcomePage.setObjectName(u"welcomePage")
+        self.imageStack.addWidget(self.welcomePage)
 
-        self.verticalLayout.addLayout(self.horizontalLayout_19)
+        self.verticalLayout.addWidget(self.imageStack)
 
         self.navBar = QFrame(self.centralwidget)
         self.navBar.setObjectName(u"navBar")
         self.navBar.setFrameShape(QFrame.NoFrame)
-        self.navLayout = QHBoxLayout(self.navBar)
-        self.navLayout.setSpacing(4)
+        self.navLayout = QVBoxLayout(self.navBar)
+        self.navLayout.setSpacing(2)
         self.navLayout.setObjectName(u"navLayout")
-        self.navLayout.setContentsMargins(8, 4, 8, 4)
+        self.navLayout.setContentsMargins(8, 6, 8, 6)
+        self.imageSlider = TimelineSlider(self.navBar)
+        self.imageSlider.setObjectName(u"imageSlider")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.imageSlider.sizePolicy().hasHeightForWidth())
+        self.imageSlider.setSizePolicy(sizePolicy1)
+        self.imageSlider.setMinimumSize(QSize(60, 22))
+        self.imageSlider.setOrientation(Qt.Horizontal)
+
+        self.navLayout.addWidget(self.imageSlider)
+
+        self.navRow = QHBoxLayout()
+        self.navRow.setSpacing(4)
+        self.navRow.setObjectName(u"navRow")
+        self.navRow.setContentsMargins(0, 0, 0, 0)
         self.firstBtn = QToolButton(self.navBar)
         self.firstBtn.setObjectName(u"firstBtn")
         self.firstBtn.setFocusPolicy(Qt.NoFocus)
         self.firstBtn.setIconSize(QSize(18, 18))
         self.firstBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.firstBtn)
+        self.navRow.addWidget(self.firstBtn)
 
         self.prevSampleBtn = QToolButton(self.navBar)
         self.prevSampleBtn.setObjectName(u"prevSampleBtn")
@@ -229,7 +260,7 @@ class Ui_SEBASTES(object):
         self.prevSampleBtn.setIconSize(QSize(18, 18))
         self.prevSampleBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.prevSampleBtn)
+        self.navRow.addWidget(self.prevSampleBtn)
 
         self.prevFrameBtn = QToolButton(self.navBar)
         self.prevFrameBtn.setObjectName(u"prevFrameBtn")
@@ -237,7 +268,7 @@ class Ui_SEBASTES(object):
         self.prevFrameBtn.setIconSize(QSize(18, 18))
         self.prevFrameBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.prevFrameBtn)
+        self.navRow.addWidget(self.prevFrameBtn)
 
         self.playBtn = QPushButton(self.navBar)
         self.playBtn.setObjectName(u"playBtn")
@@ -246,7 +277,7 @@ class Ui_SEBASTES(object):
         self.playBtn.setIconSize(QSize(16, 16))
         self.playBtn.setCheckable(True)
 
-        self.navLayout.addWidget(self.playBtn)
+        self.navRow.addWidget(self.playBtn)
 
         self.nextFrameBtn = QToolButton(self.navBar)
         self.nextFrameBtn.setObjectName(u"nextFrameBtn")
@@ -254,7 +285,7 @@ class Ui_SEBASTES(object):
         self.nextFrameBtn.setIconSize(QSize(18, 18))
         self.nextFrameBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.nextFrameBtn)
+        self.navRow.addWidget(self.nextFrameBtn)
 
         self.nextSampleBtn = QToolButton(self.navBar)
         self.nextSampleBtn.setObjectName(u"nextSampleBtn")
@@ -262,7 +293,7 @@ class Ui_SEBASTES(object):
         self.nextSampleBtn.setIconSize(QSize(18, 18))
         self.nextSampleBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.nextSampleBtn)
+        self.navRow.addWidget(self.nextSampleBtn)
 
         self.lastBtn = QToolButton(self.navBar)
         self.lastBtn.setObjectName(u"lastBtn")
@@ -270,7 +301,7 @@ class Ui_SEBASTES(object):
         self.lastBtn.setIconSize(QSize(18, 18))
         self.lastBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.lastBtn)
+        self.navRow.addWidget(self.lastBtn)
 
         self.lastFrameBtn = QToolButton(self.navBar)
         self.lastFrameBtn.setObjectName(u"lastFrameBtn")
@@ -278,48 +309,61 @@ class Ui_SEBASTES(object):
         self.lastFrameBtn.setIconSize(QSize(18, 18))
         self.lastFrameBtn.setAutoRaise(True)
 
-        self.navLayout.addWidget(self.lastFrameBtn)
+        self.navRow.addWidget(self.lastFrameBtn)
 
-        self.imageSlider = QSlider(self.navBar)
-        self.imageSlider.setObjectName(u"imageSlider")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.imageSlider.sizePolicy().hasHeightForWidth())
-        self.imageSlider.setSizePolicy(sizePolicy)
-        self.imageSlider.setMinimumSize(QSize(60, 0))
-        self.imageSlider.setOrientation(Qt.Horizontal)
+        self.navSpacerLeft = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.navLayout.addWidget(self.imageSlider)
+        self.navRow.addItem(self.navSpacerLeft)
 
-        self.frameLabel = QLabel(self.navBar)
+        self.frameInfo = QWidget(self.navBar)
+        self.frameInfo.setObjectName(u"frameInfo")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.frameInfo.sizePolicy().hasHeightForWidth())
+        self.frameInfo.setSizePolicy(sizePolicy2)
+        self.frameInfo.setMinimumSize(QSize(1, 0))
+        self.frameLayout = QHBoxLayout(self.frameInfo)
+        self.frameLayout.setSpacing(4)
+        self.frameLayout.setObjectName(u"frameLayout")
+        self.frameLayout.setContentsMargins(0, 0, 0, 0)
+        self.frameLabel = QLabel(self.frameInfo)
         self.frameLabel.setObjectName(u"frameLabel")
 
-        self.navLayout.addWidget(self.frameLabel)
+        self.frameLayout.addWidget(self.frameLabel)
 
-        self.frameBox = QLineEdit(self.navBar)
+        self.frameBox = QLineEdit(self.frameInfo)
         self.frameBox.setObjectName(u"frameBox")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.frameBox.sizePolicy().hasHeightForWidth())
-        self.frameBox.setSizePolicy(sizePolicy1)
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.frameBox.sizePolicy().hasHeightForWidth())
+        self.frameBox.setSizePolicy(sizePolicy3)
         self.frameBox.setMinimumSize(QSize(64, 0))
         self.frameBox.setMaximumSize(QSize(64, 16777215))
         self.frameBox.setAlignment(Qt.AlignCenter)
 
-        self.navLayout.addWidget(self.frameBox)
+        self.frameLayout.addWidget(self.frameBox)
 
-        self.maxFrame = QLabel(self.navBar)
+        self.maxFrame = QLabel(self.frameInfo)
         self.maxFrame.setObjectName(u"maxFrame")
 
-        self.navLayout.addWidget(self.maxFrame)
+        self.frameLayout.addWidget(self.maxFrame)
+
+        self.timeLabel = QLabel(self.frameInfo)
+        self.timeLabel.setObjectName(u"timeLabel")
+
+        self.frameLayout.addWidget(self.timeLabel)
+
+
+        self.navRow.addWidget(self.frameInfo)
+
+        self.navSpacerRight = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.navRow.addItem(self.navSpacerRight)
 
         self.sampleBox = QWidget(self.navBar)
         self.sampleBox.setObjectName(u"sampleBox")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
         sizePolicy2.setHeightForWidth(self.sampleBox.sizePolicy().hasHeightForWidth())
         self.sampleBox.setSizePolicy(sizePolicy2)
         self.sampleBox.setMinimumSize(QSize(1, 0))
@@ -334,8 +378,8 @@ class Ui_SEBASTES(object):
 
         self.sampleRateEdit = QLineEdit(self.sampleBox)
         self.sampleRateEdit.setObjectName(u"sampleRateEdit")
-        sizePolicy1.setHeightForWidth(self.sampleRateEdit.sizePolicy().hasHeightForWidth())
-        self.sampleRateEdit.setSizePolicy(sizePolicy1)
+        sizePolicy3.setHeightForWidth(self.sampleRateEdit.sizePolicy().hasHeightForWidth())
+        self.sampleRateEdit.setSizePolicy(sizePolicy3)
         self.sampleRateEdit.setMinimumSize(QSize(44, 0))
         self.sampleRateEdit.setMaximumSize(QSize(44, 16777215))
         self.sampleRateEdit.setAlignment(Qt.AlignCenter)
@@ -349,8 +393,8 @@ class Ui_SEBASTES(object):
 
         self.rateOffsetEdit = QLineEdit(self.sampleBox)
         self.rateOffsetEdit.setObjectName(u"rateOffsetEdit")
-        sizePolicy1.setHeightForWidth(self.rateOffsetEdit.sizePolicy().hasHeightForWidth())
-        self.rateOffsetEdit.setSizePolicy(sizePolicy1)
+        sizePolicy3.setHeightForWidth(self.rateOffsetEdit.sizePolicy().hasHeightForWidth())
+        self.rateOffsetEdit.setSizePolicy(sizePolicy3)
         self.rateOffsetEdit.setMinimumSize(QSize(44, 0))
         self.rateOffsetEdit.setMaximumSize(QSize(44, 16777215))
         self.rateOffsetEdit.setAlignment(Qt.AlignCenter)
@@ -358,7 +402,7 @@ class Ui_SEBASTES(object):
         self.sampleLayout.addWidget(self.rateOffsetEdit)
 
 
-        self.navLayout.addWidget(self.sampleBox)
+        self.navRow.addWidget(self.sampleBox)
 
         self.speedBox = QWidget(self.navBar)
         self.speedBox.setObjectName(u"speedBox")
@@ -394,7 +438,7 @@ class Ui_SEBASTES(object):
 
         self.playSpeedBox = QSpinBox(self.speedBox)
         self.playSpeedBox.setObjectName(u"playSpeedBox")
-        self.playSpeedBox.setMinimumSize(QSize(96, 0))
+        self.playSpeedBox.setMinimumSize(QSize(84, 0))
         self.playSpeedBox.setMaximumSize(QSize(110, 16777215))
         self.playSpeedBox.setMinimum(1)
         self.playSpeedBox.setMaximum(100)
@@ -402,7 +446,10 @@ class Ui_SEBASTES(object):
         self.speedLayout.addWidget(self.playSpeedBox)
 
 
-        self.navLayout.addWidget(self.speedBox)
+        self.navRow.addWidget(self.speedBox)
+
+
+        self.navLayout.addLayout(self.navRow)
 
 
         self.verticalLayout.addWidget(self.navBar)
@@ -1075,6 +1122,7 @@ class Ui_SEBASTES(object):
 
         self.retranslateUi(SEBASTES)
 
+        self.imageStack.setCurrentIndex(1)
         self.speciesTabWidget.setCurrentIndex(0)
 
 
@@ -1227,6 +1275,9 @@ class Ui_SEBASTES(object):
         self.adjRightBtn.setToolTip(QCoreApplication.translate("SEBASTES", u"Adjust the right image (brightness, contrast, gamma)", None))
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(tooltip)
+        self.imageSlider.setToolTip(QCoreApplication.translate("SEBASTES", u"Timeline: the ticks mark the frames that have measurements (tall) or targets (short)", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
         self.firstBtn.setToolTip(QCoreApplication.translate("SEBASTES", u"First frame", None))
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(tooltip)
@@ -1258,6 +1309,10 @@ class Ui_SEBASTES(object):
         self.maxFrame.setText(QCoreApplication.translate("SEBASTES", u"/ 0", None))
 #if QT_CONFIG(tooltip)
         self.maxFrame.setToolTip(QCoreApplication.translate("SEBASTES", u"Last frame number", None))
+#endif // QT_CONFIG(tooltip)
+        self.timeLabel.setText("")
+#if QT_CONFIG(tooltip)
+        self.timeLabel.setToolTip(QCoreApplication.translate("SEBASTES", u"Time in the video (hours:minutes:seconds.hundredths)", None))
 #endif // QT_CONFIG(tooltip)
         self.everyLabel.setText(QCoreApplication.translate("SEBASTES", u"Every", None))
 #if QT_CONFIG(tooltip)

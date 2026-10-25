@@ -17,11 +17,17 @@ import glob
 import getpass
 import pathlib
 import re
+import json
+import bisect
 import random
 import sqlite3
 from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg
 from exif import Image
+
+#  how many deployments the welcome page lists as the ones opened last
+RECENT_DEPLOYMENTS = 8
+
 
 def strtobool(val):
     # replaces distutils.util.strtobool - distutils was removed in Python 3.12
@@ -104,6 +110,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.navWidgets=[self.firstBtn, self.prevSampleBtn, self.prevFrameBtn, self.nextFrameBtn, self.nextSampleBtn, self.lastBtn]
         self.setNavEnabled(False)
         self.copyBtn.setEnabled(False)
+        # the time of the frame is shown for video deployments only; the room for all its digits is kept so the controls don't move
+        self.timeLabel.setContentsMargins(14, 0, 0, 0)
+        self.timeLabel.setMinimumWidth(self.timeLabel.fontMetrics().horizontalAdvance('00:00:00.00')+14)
+        self.timeLabel.hide()
 
         self.playBtn.setEnabled(False)
         #  set the base directory path - this is the full path to this application
@@ -202,6 +212,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.measurementsDock)
         self.measurementsDock.setFeatures(dockFeatures)
         self.measurementsDock.goToTarget.connect(self.showMeasurement)
+        # the ticks of the timeline follow the measurements
+        self.measurementsDock.refreshed.connect(self.updateTimelineMarks)
         self.measurementsDock.hide()
         # View menu: show or hide the docks
         self.menuView.addSeparator()
@@ -220,13 +232,16 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the guided fish marking follows these buttons
         for btn in [self.recordBtn, self.measureBtn, self.trainBtn, self.stereoRadio]:
             btn.toggled.connect(self.updateFishGuide)
+        # while recording nothing plays: the speed gives way to the sample step in a narrow navigation bar
+        self.recordBtn.toggled.connect(self.fitNavBar)
 
         # grid cehckbox
         self.gridCheck.toggled.connect(self.gridBoxAction)
         
         #  connect the GUI signals and slots
         self.actionExit.triggered.connect(self.close)
-        self.actionLoad.triggered.connect(self.loadDeployment)
+        # the triggered signal passes its checked state: loadDeployment's argument is a folder
+        self.actionLoad.triggered.connect(lambda: self.loadDeployment())
         self.actionProfiles.triggered.connect(self.setupProfiles)
         self.actionGUI_settings.triggered.connect(self.getGuiSettings)
         self.actionGrid_setup.triggered.connect(self.getGridSetup)
@@ -261,7 +276,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             #obj.panKey = None
             obj.rubberBandKey=None
             obj.image.keepEnhanced=True
-            
+        # the welcome page opens a deployment, from its button or from the list of the last ones
+        self.welcomePage.openRequested.connect(self.actionLoad.trigger)
+        self.welcomePage.recentRequested.connect(self.loadDeployment)
+
         #  restore the application state
         self.appSettings = QSettings('afsc.noaa.gov', 'Sebastes')
         position = self.appSettings.value('winposition', QPoint(10,10))
@@ -366,11 +384,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.refreshTheme()
         self.updateDeploymentLabel()
         self.updateMeasureWidgets()
-        # widths the navigation bar needs without the sample and speed controls, and for each of them: see fitNavBar
-        self.navBar.layout().activate()
-        spacing=self.navBar.layout().spacing()
-        self.navWidths=(self.navBar.minimumSizeHint().width(), self.sampleBox.sizeHint().width()+spacing, self.speedBox.sizeHint().width()+spacing)
+        # the second row of the navigation bar gives up controls when the window is narrow: see fitNavBar
         self.navBar.installEventFilter(self)
+        self.showWelcome()
 
     ######################0. WINDOW LAYOUT################################
 
@@ -542,6 +558,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             button.setIcon(icon(name))
         self.mainToolBar.widgetForAction(self.recordToolAction).setStyleSheet(theme.recordButtonStyle())
         self.playBtn.setStyleSheet(theme.playButtonStyle())
+        colors=theme.colors()
+        self.imageSlider.setMarkColors(colors['warning'], colors['text'], colors['surface'])
         self.updatePlayButton()
         self.updateStatusMode()
 
@@ -580,21 +598,108 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             button.setEnabled(enabled)
 
     def eventFilter(self, obj, event):
-        # the speed and sample controls give way when the navigation bar gets narrow
-        if obj is self.navBar and event.type()==QEvent.Type.Resize:
+        # the sample and speed controls give way when the navigation bar gets narrow
+        if obj is self.navBar and event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
             self.fitNavBar()
         return QMainWindow.eventFilter(self, obj, event)
 
     def fitNavBar(self):
         '''
-        fitNavBar hides the speed controls, and then the sample controls, of the navigation bar when there is no room
-        for them. Their minimum width is 1 in the layout, so the window can be made narrow. They come back when the
-        bar is wide enough again.
+        fitNavBar makes the second row of the navigation bar fit its width. When it is too narrow it gives up controls,
+        the least needed first, until the rest fits: the speed slider (the speed stays in its box), the time of the
+        frame, the offset of the sample step and then the sample step, or the speed while recording (nothing plays
+        then, and the sample step is what the arrow keys use). The controls come back when the bar is wide enough
+        again. Their minimum width is 1 in the layout, so the window can be made narrow.
         '''
-        base, sample, speed=self.navWidths
-        width=self.navBar.width()
-        self.speedBox.setVisible(width>=base+sample+speed)
-        self.sampleBox.setVisible(width>=base+sample)
+        margins=self.navLayout.contentsMargins()
+        room=self.navBar.width()-margins.left()-margins.right()
+        row=[self.firstBtn, self.prevSampleBtn, self.prevFrameBtn, self.playBtn, self.nextFrameBtn, self.nextSampleBtn, self.lastBtn,
+             self.lastFrameBtn, self.frameInfo, self.sampleBox, self.speedBox]
+        for stage in range(5):
+            self.playSpeedSlider.setVisible(stage<1)
+            self.timeLabel.setVisible(stage<2 and self.videoMode)
+            self.rateOffsetEdit.setVisible(stage<3)
+            self.offsetLabel.setText('frames, offset' if stage<3 else 'frames')
+            recording=self.recordBtn.isChecked()
+            self.sampleBox.setVisible(stage<4 or recording)
+            self.speedBox.setVisible(stage<4 or not recording)
+            shown=[widget for widget in row if not widget.isHidden()]
+            # the widgets and the two stretches that centre the frame number, one spacing between neighbours
+            needed=sum(widget.sizeHint().width() for widget in shown)+self.navRow.spacing()*(len(shown)+1)+4
+            if needed<=room:
+                break
+
+    def updateTimeLabel(self, frame=None):
+        '''
+        updateTimeLabel shows the time of the frame in the video: hours, minutes, seconds and hundredths of a second.
+        Still images have no time.
+        '''
+        video=self.videoSources.get(getattr(self, 'LPath', None)) if self.videoMode else None
+        if video is None or not video.fps or frame is None or self.noLoad:
+            self.timeLabel.setText('')
+            return
+        hundredths=int(frame*100/video.fps)
+        seconds, hundredths=divmod(hundredths, 100)
+        minutes, seconds=divmod(seconds, 60)
+        hours, minutes=divmod(minutes, 60)
+        self.timeLabel.setText('%02d:%02d:%02d.%02d' % (hours, minutes, seconds, hundredths))
+
+    def updateTimelineMarks(self):
+        '''
+        updateTimelineMarks puts the ticks on the timeline: a tall one at each frame with a measurement, a short one at
+        the frames that have targets only. It only reads the data database.
+        '''
+        measured=[]
+        counted=[]
+        if self.dataDB is not None and self.deployment is not None and not self.noLoad:
+            frames=self.leftImageFrames
+            for table, marks in [('lines', measured), ('targets', counted)]:
+                query=self.dataDB.dbQuery("SELECT DISTINCT frame_number FROM "+table+" WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
+                for frame, in query:
+                    # the frames are sorted: the position of a frame number is its slider position
+                    index=bisect.bisect_left(frames, int(frame)) if frame is not None else len(frames)
+                    if index<len(frames) and frames[index]==int(frame):
+                        marks.append(index)
+        self.imageSlider.setMarks(measured, counted)
+
+    def showWelcome(self):
+        '''
+        showWelcome shows the welcome page in place of the images and the playback bar. It is what SEBASTES looks like
+        until a deployment is loaded.
+        '''
+        self.welcomePage.setRecent(self.recentDeployments())
+        self.imageStack.setCurrentWidget(self.welcomePage)
+        self.navBar.hide()
+
+    def showViews(self):
+        '''
+        showViews shows the two images and the playback bar, in the size they have to fill, in place of the welcome page.
+        '''
+        self.imageStack.setCurrentWidget(self.viewPage)
+        self.navBar.show()
+        self.centralWidget().layout().activate()
+
+    def recentDeployments(self):
+        '''
+        recentDeployments returns the folders of the deployments opened last, the newest first. Folders that are not
+        there any more are left out (they stay in the settings: a disk that is not connected now may be next time).
+        '''
+        return [folder for folder in self.storedRecentDeployments() if os.path.isdir(folder)]
+
+    def storedRecentDeployments(self):
+        try:
+            folders=json.loads(self.appSettings.value('recentdeployments', '[]'))
+        except (TypeError, ValueError):
+            return []
+        return [folder for folder in folders if isinstance(folder, str)] if isinstance(folders, list) else []
+
+    def addRecentDeployment(self, folder):
+        '''
+        addRecentDeployment puts a deployment that was opened first in the list of the last ones (at most RECENT_DEPLOYMENTS).
+        '''
+        same=lambda a, b: os.path.normcase(os.path.normpath(a))==os.path.normcase(os.path.normpath(b))
+        folders=[folder]+[other for other in self.storedRecentDeployments() if not same(other, folder)]
+        self.appSettings.setValue('recentdeployments', json.dumps(folders[:RECENT_DEPLOYMENTS]))
 
     def updatePlayButton(self):
         # the button says what it does next
@@ -1077,17 +1182,30 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
             dock.hide()
         self.maxFrame.setText('/ 0')
+        self.videoMode=False
+        self.updateTimeLabel()
+        self.imageSlider.setMarks([], [])
         self.updateDeploymentLabel()
         self.clearMarks()
         for obj in [self.gvLeft, self.gvRight]:
             obj.clearViewer()
+        self.showWelcome()
 
-    def loadDeployment(self):
-        #  get the deployment directory
-        deploymentPath = QFileDialog.getExistingDirectory(self, 'Select Deployment Directory', self.__dataDir,
-                                              QFileDialog.Option.ShowDirsOnly)
+    def loadDeployment(self, deploymentPath=None):
+        '''
+        loadDeployment loads a deployment. The folder is asked for unless it is given (the welcome page gives the one
+        that was chosen in its list); everything else is checked the same way.
+        '''
+        if not isinstance(deploymentPath, str):
+            #  get the deployment directory
+            deploymentPath = QFileDialog.getExistingDirectory(self, 'Select Deployment Directory', self.__dataDir,
+                                                  QFileDialog.Option.ShowDirsOnly)
+        elif not os.path.isdir(deploymentPath):
+            QMessageBox.warning(self, "ERROR", deploymentPath+" is not a folder any more.")
+            return
         if deploymentPath == '':
             return
+        deploymentPath = deploymentPath.replace(os.sep, '/').rstrip('/')
         deployment = deploymentPath.split('/')[-1]
         sourcePath = QDir(deploymentPath)
         sourcePath.cdUp()
@@ -1145,7 +1263,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.dataPath = dataPath
         self.activeProject = project
         self.projectDict = projectDict
-        if not self.openDeployment(profile, newProfile):
+        if self.openDeployment(profile, newProfile):
+            self.addRecentDeployment(deploymentPath)
+        else:
             self.unloadDeployment()
 
     def openDeployment(self, profile, newProfile):
@@ -1489,6 +1609,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.recordBtn.setEnabled(True)
             self.copyBtn.setEnabled(True)
             self.setNavEnabled(True)
+            self.showViews()
+            self.fitNavBar()
             self.toggleRecord()
             if self.imageSlider.value()==1:
                 # the slider is already there (an earlier deployment) and sends no valueChanged
@@ -1627,18 +1749,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
 
     def showHelpImage(self):
+        '''
+        showHelpImage shows the welcome page (the photo of the fish is on it), unless a deployment has been loaded since.
+        '''
         if self.appDB==None:
             self.close()
 
-        #  clear the viewers
-        self.gvLeft.removeScene()
-        self.gvLeft.createScene()
-        self.__leftCamLabel = []
-
-        #  load the help images
-
-        self.gvLeft.setImageFromFile(self.baseDir + '/' + 'resources' + '/' + 'help.jpg')
-        self.gvLeft.fillExtent()
+        if self.deployment is None:
+            self.showWelcome()
 
     def showAdjustmentsDialog(self):
         if self.sender()==self.adjLeftBtn:
@@ -1691,6 +1809,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
             currentFrame=self.leftImageFrames[self.imageSlider.value()]
             self.frameBox.setText(str(currentFrame))
+            self.updateTimeLabel(currentFrame)
             
             if self.measureBtn.isChecked():
                     self.measureBtn.setChecked(False)
@@ -2366,6 +2485,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     if self.gridCheck.isChecked():
                                         self.speciesInGrid.add(self.spcButtons[self.spcInd].text())
                             self.pointMarks.update({marker:[self.currentTarget,  imageObj]})
+                            # the frame has a target now
+                            self.updateTimelineMarks()
                 self.incrementCounters()
             except:
                 self.showError()
@@ -3160,6 +3281,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 # clear out current length measurements
                 self.keepLineName(self.currentTarget, self.measurementBox.currentText())
                 self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameBox.text()+" and target_number ="+str(self.currentTarget)+"  AND line_label='"+self.measurementBox.currentText()+"' AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                self.updateTimelineMarks()
                 # reload frame
                             # get the zoom state
                 if self.activeMark[self.gvLeft]:
@@ -3532,6 +3654,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 # delete bad target (temporary)
                 for t in targetToDelete:
                     self.dataDB.dbExec("DELETE FROM targets WHERE frame_number="+self.frameBox.text()+" AND target_number="+t+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                if targetToDelete:
+                    self.updateTimelineMarks()
                 # relod frame metadata
                 if self.settings['CollectMetadata'].lower()=='true' or self.settings['CollectMetadata'].lower()=='yes':
                     if 'ExclusiveRadioBox1' in self.metadataTypesDict:
