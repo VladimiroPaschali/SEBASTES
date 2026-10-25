@@ -215,6 +215,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the ticks of the timeline follow the measurements
         self.measurementsDock.refreshed.connect(self.updateTimelineMarks)
         self.measurementsDock.hide()
+        # the species buttons keep their size at the top of their tab: the ones without a species are hidden (setupSpcBtns)
+        self.verticalLayout_3.addStretch(1)
+        self.verticalLayout_7.addStretch(1)
+        self.showSpeciesButtons(0)
         # View menu: show or hide the docks
         self.menuView.addSeparator()
         for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
@@ -867,7 +871,28 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     }}
                 """)
                 cnt+=1
-    
+            self.showSpeciesButtons(min(cnt, len(self.spcButtons)))
+
+    def showSpeciesButtons(self, count):
+        '''
+        showSpeciesButtons shows the first count species buttons and hides the others, which have no species. The second
+        tab (buttons 16 to 30) and the tab bar are there only when the species need more than the first tab holds.
+        '''
+        for index, btn in enumerate(self.spcButtons):
+            if index>=count:
+                # a button that had a species before the profile or the species changed
+                btn.setChecked(False)
+                btn.setText('')
+                btn.setToolTip('')
+                btn.setStyleSheet('')
+            btn.setVisible(index<count)
+        firstTabSize=len(self.tab_1.findChildren(QPushButton))
+        second=self.speciesTabWidget.indexOf(self.tab_2)
+        self.speciesTabWidget.setTabVisible(second, count>firstTabSize)
+        self.speciesTabWidget.tabBar().setVisible(count>firstTabSize)
+        if count<=firstTabSize:
+            self.speciesTabWidget.setCurrentIndex(self.speciesTabWidget.indexOf(self.tab_1))
+
     def loadProfile(self):
         try:
             # settings

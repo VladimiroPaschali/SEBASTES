@@ -104,7 +104,7 @@ Open **Settings > Profiles...** and go to the **Species Collections** tab.
 1. Click **Create new Species Collection** and type a name and a description.
 2. Click **Insert** once per species. Give each one a name, a description, a button color and an optional order.
 
-A species collection holds up to 30 species. Each one becomes a button that you use while annotating. The collection is saved when you insert its first species.
+A species collection holds up to 30 species. Each one becomes a button that you use while annotating: only the buttons that have a species are shown, and the second tab of the species panel (species 16 to 30) appears only when there are more than 15. The collection is saved when you insert its first species.
 
 ### 2. Profile
 
