@@ -1700,12 +1700,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         elif ev.key() in [ Qt.Key_Right, Qt.Key_Left]:
             if self.measureBtn.isChecked():
                 return# dont advance frame while measurements are taking place
-            #  write any data to the database before changing image
-            if self.recordBtn.isChecked():
-                self.writeFrameData()
-                self.clearValues()
             frameIndex=self.imageSlider.value()
-            sampleRate = float(self.sampleRateEdit.text())
+            try:
+                sampleRate = float(self.sampleRateEdit.text())
+            except ValueError:
+                sampleRate = 1
+            if sampleRate < 1:
+                sampleRate = 1
             try:
                 offset = float(self.rateOffsetEdit.text())
             except:
@@ -1722,7 +1723,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 else :
                     if (ev.modifiers() == Qt.ControlModifier):
                         #  decrement one image
-                        targetIndex=frameIndex
+                        targetIndex=frameIndex - 1
                     else:
                         #  decrement one sample step
                         targetIndex=int(round((float(frameIndex - sampleRate-offset)) /
@@ -1741,25 +1742,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if not (targetIndex - self.linkData[0]) in [0, 1]:
                     self.linkData=[]
                     self.linkBtn.setChecked(False)
-            self.imageSlider.setValue(targetIndex)
+            self.changeFrame(targetIndex)
             
         elif (ev.key() == Qt.Key_Escape):
-            self.deSelect()
-            self.clearMarks()
-            self.activeLine[self.gvLeft]=None
-            self.activeLine[self.gvRight]=None
-            self.activeMark[self.gvLeft]=None
-            self.activeMark[self.gvLeft]=None
-            try:
-                if self.rubberBanding:
-                    self.rubberBanding = False
-            except:
-                self.showError()
-
-            if len(self.pairPoints)==1: #user lifted shift button  but didn't mean to
+            halfPair=len(self.pairPoints)==1 # a pair that was started and is being cancelled
+            if halfPair:
+                # get the zoom state before the marks are cleared
                 lZoom=self.gvLeft.zoomLevel
                 rZoom=self.gvRight.zoomLevel
-                            # get the zoom state
                 if self.activeMark[self.gvLeft]:
                     lPoint=self.activeMark[self.gvLeft].mapToScene(self.activeMark[self.gvLeft].boundingRect().center())
                 else:
@@ -1768,16 +1758,26 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     rPoint=self.activeMark[self.gvRight].mapToScene(self.activeMark[self.gvRight].boundingRect().center())
                 else:
                     rPoint=None
-                # find the pair
-                self.__changeImage()
+            self.deSelect()
+            self.clearMarks()
+            self.activeLine[self.gvLeft]=None
+            self.activeLine[self.gvRight]=None
+            self.activeMark[self.gvLeft]=None
+            self.activeMark[self.gvRight]=None
+            try:
+                if self.rubberBanding:
+                    self.rubberBanding = False
+            except:
+                self.showError()
+
+            self.__changeImage()
+            if halfPair:
                 # zoom back
                 if lPoint!=None:
                     self.gvLeft.zoomToPoint(lPoint, lZoom)
                 if rPoint!=None:
                     self.gvRight.zoomToPoint(rPoint, rZoom)
                 self.pairPoints=[]
-
-            self.__changeImage()
         
         elif (ev.key() == Qt.Key_Z):
             # this is to quick undo auto targets only
@@ -2693,20 +2693,39 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def getFrame(self):
         if self.deployment==None:
             return
-        if int(self.frameBox.text())>self.maxFr:
+        # the box holds the number that was typed: until the frame is shown it must say which
+        # frame is on screen, as that is the frame the data being saved belongs to
+        typed=self.frameBox.text()
+        self.frameBox.setText(str(self.leftImageFrames[self.imageSlider.value()]))
+        try:
+            frame=int(typed)
+        except ValueError:
+            QMessageBox.warning(self, "ERROR", "The frame number must be a whole number.")
+            return
+        if frame>self.maxFr:
             QMessageBox.warning(self, "ERROR", "Max frame number is "+str(self.maxFr))
             return
-        if int(self.frameBox.text())<self.minFr:
+        if frame<self.minFr:
             QMessageBox.warning(self, "ERROR", "Min frame number is "+str(self.minFr) )
             return
-        if int(self.frameBox.text()) in self.leftImageDict:
-            
-            frameIndex=self.leftImageFrames.index(int(self.frameBox.text()))
-            self.imageSlider.setValue(frameIndex)
+        if frame in self.leftImageDict:
+            frameIndex=self.leftImageFrames.index(frame)
+            self.changeFrame(frameIndex)
         else:
             QMessageBox.warning(self, "ERROR", "This frame number isn't in the image folder.")
-            
             return
+
+    def changeFrame(self, frameIndex):
+        '''
+        changeFrame shows the frame at the given slider position. While recording, the data of
+        the frame being left is saved first, as when stepping with the arrow keys.
+        '''
+        if frameIndex==self.imageSlider.value():
+            return
+        if self.recordBtn.isChecked():
+            self.writeFrameData()
+            self.clearValues()
+        self.imageSlider.setValue(frameIndex)
 
 ####################3. UTILITY FUNCTIONS AND CALCULATIONS ############################
     def getTargetComment(self):
@@ -2750,7 +2769,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 frameIndex=self.leftImageFrames.index(int(frame))
                 
         if frameIndex:
-            self.imageSlider.setValue(frameIndex)
+            self.changeFrame(frameIndex)
         
     def editSpecies(self):
         dlg=editspeciesdlg.EditSpeciesDlg(self)
@@ -2761,7 +2780,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     
     def changeSelectionFromTable(self, frame, target, zoom=None):
         frameIndex=self.leftImageFrames.index(frame)
-        self.imageSlider.setValue(frameIndex)
+        self.changeFrame(frameIndex)
         self.selectValueFromTable(frame, target, zoom)
 
     def selectValueFromTable(self, frame, target, zoom):
@@ -3343,8 +3362,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                             self.metadataCheckBoxes[i].setChecked(True)
                                         else:
                                             self.metadataCheckBoxes[i].setChecked(False)
-                    frame=self.leftImageFrames[self.imageSlider.value()]
-                    self.frameCommentDlg.showComment(str(frame))
+            # reload the frame comment
+            frame=self.leftImageFrames[self.imageSlider.value()]
+            self.frameCommentDlg.showComment(str(frame))
         except:
             self.showError()
             
