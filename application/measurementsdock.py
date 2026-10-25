@@ -8,7 +8,29 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from dbConnection import sqlQuote
 
-COLUMNS = ['Name', 'Frame', 'Target', 'Species', 'Measurement', 'Length (cm)', 'Distance (cm)', 'e (px)']
+#  The columns the user reads first come first, so that the panel at its default width shows them: the name, the species
+#  and the length, then where the fish is (frame and target) and the details.
+COLUMNS = ['Name', 'Species', 'Length (cm)', 'Frame', 'Target', 'Measurement', 'Distance (cm)', 'e (px)']
+NAME, SPECIES, LENGTH, FRAME, TARGET = 0, 1, 2, 3, 4
+
+
+class CompactHeader(QHeaderView):
+    '''
+    Qt makes every section of a header that shows a sort indicator wide enough for the arrow, although the arrow is
+    drawn in one section only. In a panel of 380 px that is more than a column of numbers can spare, so here only the
+    sorted section keeps the room (and the sections are measured again when the sort column changes).
+    '''
+
+    def __init__(self, parent=None):
+        super(CompactHeader, self).__init__(Qt.Orientation.Horizontal, parent)
+        self.sortIndicatorChanged.connect(lambda *args: self.resizeSections(QHeaderView.ResizeMode.ResizeToContents))
+
+    def sectionSizeFromContents(self, logicalIndex):
+        size = super(CompactHeader, self).sectionSizeFromContents(logicalIndex)
+        if self.isSortIndicatorShown() and logicalIndex != self.sortIndicatorSection():
+            margin = self.style().pixelMetric(QStyle.PixelMetric.PM_HeaderMargin, None, self)
+            size.setWidth(size.width() - size.height() - margin)
+        return size
 
 
 class MeasurementsDock(QDockWidget):
@@ -27,15 +49,18 @@ class MeasurementsDock(QDockWidget):
         self.filling = False
 
         self.table = QTableWidget(0, len(COLUMNS))
+        self.table.setHorizontalHeader(CompactHeader(self.table))
         self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked | QAbstractItemView.EditTrigger.EditKeyPressed)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # a name is edited in its cell: keep it a size to type in
+        self.table.horizontalHeader().setMinimumSectionSize(56)
         self.table.horizontalHeader().setStretchLastSection(True)
         #  sorted by frame until the user clicks another column header
-        self.table.horizontalHeader().setSortIndicator(1, Qt.SortOrder.AscendingOrder)
+        self.table.horizontalHeader().setSortIndicator(FRAME, Qt.SortOrder.AscendingOrder)
         self.table.itemChanged.connect(self.nameChanged)
         self.table.cellClicked.connect(self.rowClicked)
         self.setWidget(self.table)
@@ -63,13 +88,13 @@ class MeasurementsDock(QDockWidget):
         for rowid, name, frame, target, species, label, length, rng, error in query:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            values = [name or '', int(frame), int(target), species or '', label or '',
-                      self.number(length), self.number(rng), self.number(error)]
+            values = [name or '', species or '', self.number(length), int(frame), int(target), label or '',
+                      self.number(rng), self.number(error)]
             for col, value in enumerate(values):
                 item = QTableWidgetItem()
                 #  numbers are stored as numbers so that the columns sort correctly
                 item.setData(Qt.ItemDataRole.DisplayRole, value)
-                if col == 0:
+                if col == NAME:
                     item.setData(Qt.ItemDataRole.UserRole, rowid)
                     item.setToolTip('Double-click to rename')
                 else:
@@ -97,7 +122,7 @@ class MeasurementsDock(QDockWidget):
         '''
         nameChanged saves a name edited in the table.
         '''
-        if self.filling or item.column() != 0:
+        if self.filling or item.column() != NAME:
             return
         name = sqlQuote(str(item.text()).strip())
         rowid = item.data(Qt.ItemDataRole.UserRole)
@@ -105,7 +130,7 @@ class MeasurementsDock(QDockWidget):
 
 
     def rowClicked(self, row, column):
-        frame = self.table.item(row, 1)
-        target = self.table.item(row, 2)
+        frame = self.table.item(row, FRAME)
+        target = self.table.item(row, TARGET)
         if frame is not None and target is not None:
             self.goToTarget.emit(int(frame.data(Qt.ItemDataRole.DisplayRole)), int(target.data(Qt.ItemDataRole.DisplayRole)))
