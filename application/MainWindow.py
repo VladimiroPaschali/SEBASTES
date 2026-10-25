@@ -7,7 +7,7 @@ from PySide6.QtCore  import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from ui import ui_SEBASTES_dockable
-import pyStereoComp, dbConnection, videoSource, measurementsdock
+import pyStereoComp, dbConnection, videoSource, measurementsdock, theme
 from dbConnection import sqlQuote
 import numpy as ny
 import cv2
@@ -27,32 +27,14 @@ def strtobool(val):
     # replaces distutils.util.strtobool - distutils was removed in Python 3.12
     return str(val).lower() in ('y', 'yes', 't', 'true', 'on', '1')
 
-class HorizontalScrollArea(QScrollArea):
-    def updateContentHeight(self):
-        content = self.widget()
-        if content is None:
-            return
-        minimum = content.minimumSizeHint()
-        height = minimum.height() + 8
-        if minimum.width() > self.viewport().width():
-            height += self.horizontalScrollBar().sizeHint().height()
-        if self.height() != height:
-            self.setFixedHeight(height)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.updateContentHeight()
-
-    def eventFilter(self, obj, event):
-        if obj is self.widget() and event.type() == QEvent.Type.LayoutRequest:
-            self.updateContentHeight()
-        return super().eventFilter(obj, event)
 
 class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def __init__(self, parent=None):
         super(SEBASTES, self).__init__(parent)
         self.setupUi(self)
+        self.setupToolBar()
+        self.setupStatusBar()
 
         self.__leftDirScanned = False
         self.__rightDirScanned = False
@@ -88,19 +70,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.selThickness=4
         self.textOffset = QPointF(-4,-4)
         
-        #  button colors: the checked state shows recording / playing
-        self.recordBtn.setStyleSheet("""
-            QPushButton { color: #d32f2f; font-weight: bold; padding: 4px 10px;
-                          background-color: #ffffff; border: 2px solid #d32f2f; border-radius: 4px; }
-            QPushButton:checked { color: white; background-color: #d32f2f; }
-            QPushButton:disabled { color: #a0a0a0; border-color: #c8c8c8; background-color: #f0f0f0; }
-        """)
-        self.playBtn.setStyleSheet("""
-            QPushButton { color: white; font-weight: bold; padding: 4px 10px;
-                          background-color: #2e7d32; border: none; border-radius: 4px; }
-            QPushButton:checked { background-color: #d32f2f; }
-            QPushButton:disabled { color: #a0a0a0; background-color: #e0e0e0; }
-        """)
+        # the Auto Match threshold is a line edit that is never shown: Annotate > Match Threshold sets it
+        self.matchThresholdEdit=QLineEdit(self)
+        self.matchThresholdEdit.hide()
 
         # dont mess with this code
         self.spcButtons=[self.btn1, self.btn2, self.btn3, self.btn4, self.btn5, self.btn6, self.btn7, self.btn8, self.btn9, self.btn10,
@@ -118,25 +90,20 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.metadataStickyBox.setEnabled(False)
         self.metadataWidgets=[self.exclusiveRadioBox1, self.exclusiveRadioBox2, self.exclusiveRadioBox3, self.metadataStickyBox, self.extraMetadataFrame]
         self.metadataTypesDict={}
-        self.recordEnableWidgets=[self.recomputeBtn,self.trainBtn,self.measureBtn, self.measurementBox, self.linkBtn , self.targetCommentBtn, self.frameCommentBtn, 
-                            self.computeMatchBox, self.matchThresholdEdit, self.stereoOnlyCheckBox, self.showDataCheck, self.editSpeciesBtn, self.gridCheck,  self.clearGridBtn,  self.delLinkBtn, self.lastFrameBtn]
-        self.bboxEnableWidgets=[self.recomputeBtn,self.measureBtn, self.linkBtn, 
-                            self.computeMatchBox, self.matchThresholdEdit, self.stereoOnlyCheckBox, self.showDataCheck]
-        # Measure Target and its measurement list are hidden while Measure Target is disabled.
-        # They keep their space so the other tools don't move.
-        self.measureWidgets=[self.measureBtn, self.label_8, self.measurementBox]
-        for widget in self.measureWidgets:
-            policy=widget.sizePolicy()
-            policy.setRetainSizeWhenHidden(True)
-            widget.setSizePolicy(policy)
-        self.measureBtn.installEventFilter(self)
+        self.recordEnableWidgets=[self.recomputeBtn,self.trainBtn,self.measureBtn, self.measurementBox, self.linkBtn , self.targetCommentBtn, self.frameCommentBtn,
+                            self.computeMatchBox, self.actionMatchThreshold, self.stereoOnlyCheckBox, self.showDataCheck, self.editSpeciesBtn, self.gridCheck,  self.clearGridBtn,  self.delLinkBtn, self.lastFrameBtn]
+        self.bboxEnableWidgets=[self.recomputeBtn,self.measureBtn, self.linkBtn,
+                            self.computeMatchBox, self.actionMatchThreshold, self.stereoOnlyCheckBox, self.showDataCheck]
+        # Measure Target and its measurement list are shown only while Measure Target is enabled
+        self.measureWidgets=[self.measureBtn, self.measurementBox]
+        self.measureBtn.changed.connect(self.updateMeasureWidgets)
         # the target link and species tools only work while recording, so they are shown only then
-        self.recordOnlyWidgets=[self.linkBtn, self.editSpeciesBtn, self.label_4, self.targetLinkLabel, self.delLinkBtn]
-        for widget in self.recordOnlyWidgets:
-            policy=widget.sizePolicy()
-            policy.setRetainSizeWhenHidden(True)
-            widget.setSizePolicy(policy)
-            widget.hide()
+        self.recordOnlyWidgets=[self.linkBtn, self.editSpeciesBtn, self.targetBox, self.delLinkBtn]
+        self.showTools(self.recordOnlyWidgets, False)
+        # buttons that move through the frames: they work once a deployment is loaded
+        self.navWidgets=[self.firstBtn, self.prevSampleBtn, self.prevFrameBtn, self.nextFrameBtn, self.nextSampleBtn, self.lastBtn]
+        self.setNavEnabled(False)
+        self.copyBtn.setEnabled(False)
 
         self.playBtn.setEnabled(False)
         #  set the base directory path - this is the full path to this application
@@ -199,47 +166,63 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.pressTime=QElapsedTimer()
         self.pressTime.start()
         
-        self.recomputeBtn.clicked.connect(self.recompute3D)
-        self.recordBtn.clicked.connect(self.toggleRecord)
-        self.measureBtn.clicked.connect(self.toggleMeasure)
-        self.trainBtn.clicked.connect(self.toggleTraining)
-        self.copyBtn.clicked.connect(self.copyImg)
+        self.recomputeBtn.triggered.connect(self.recompute3D)
+        self.recordBtn.triggered.connect(self.toggleRecord)
+        self.measureBtn.triggered.connect(self.toggleMeasure)
+        self.trainBtn.triggered.connect(self.toggleTraining)
+        self.copyBtn.triggered.connect(self.copyImg)
         self.playBtn.clicked.connect(self.play)
-        self.linkBtn.clicked.connect(self.toggleLink)
-        self.delLinkBtn.clicked.connect(self.deleteLink)
-        self.targetCommentBtn.clicked.connect(self.getTargetComment)
-        self.frameCommentBtn.clicked.connect(self.getFrameComment)
-        self.clearGridBtn.clicked.connect(self.clearGridData)
-        self.editSpeciesBtn.clicked.connect(self.editSpecies)
+        self.linkBtn.triggered.connect(self.toggleLink)
+        self.delLinkBtn.triggered.connect(self.deleteLink)
+        self.targetCommentBtn.triggered.connect(self.getTargetComment)
+        self.frameCommentBtn.triggered.connect(self.getFrameComment)
+        self.clearGridBtn.triggered.connect(self.clearGridData)
+        self.editSpeciesBtn.triggered.connect(self.editSpecies)
+        self.actionMatchThreshold.triggered.connect(self.setMatchThreshold)
+        self.actionAbout.triggered.connect(self.showAbout)
         self.lastFrameBtn.clicked.connect(self.goToLastFrame)
+        # the navigation buttons do what the arrow keys do
+        self.firstBtn.clicked.connect(lambda: self.goToIndex(self.imageSlider.minimum()))
+        self.prevSampleBtn.clicked.connect(lambda: self.stepFrame(-1, False))
+        self.prevFrameBtn.clicked.connect(lambda: self.stepFrame(-1, True))
+        self.nextFrameBtn.clicked.connect(lambda: self.stepFrame(1, True))
+        self.nextSampleBtn.clicked.connect(lambda: self.stepFrame(1, False))
+        self.lastBtn.clicked.connect(lambda: self.goToIndex(self.imageSlider.maximum()))
         
         # docking widgets
-        self.metadataDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
+        # the docks can be closed: the View menu opens them again (its entries are disabled for docks that can't be closed)
+        dockFeatures=QDockWidget.DockWidgetFeature.DockWidgetClosable | QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable
+        self.metadataDockWidget.setFeatures(dockFeatures)
         self.metadataDockWidget.hide()
-        self.speciesDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
+        self.speciesDockWidget.setFeatures(dockFeatures)
         self.speciesDockWidget.hide()
         # species buttons next to the left image, Measurements panel next to the right one
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.speciesDockWidget)
         self.measurementsDock=measurementsdock.MeasurementsDock(self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.measurementsDock)
+        self.measurementsDock.setFeatures(dockFeatures)
         self.measurementsDock.goToTarget.connect(self.showMeasurement)
         self.measurementsDock.hide()
-        self.toolsDockWidget.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
+        # View menu: show or hide the docks
+        self.menuView.addSeparator()
+        for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
+            self.menuView.addAction(dock.toggleViewAction())
 
-        for box in self.optionsBoxes:
-            box.stateChanged.connect(self.checkBoxAction)
-        
-        self.metadataStickyBox.stateChanged.connect(self.clearMetadataSelections) 
-        # camera view radio button
+        for action in [self.labelCheck, self.showDataCheck, self.closeupCheck]:
+            action.toggled.connect(self.checkBoxAction)
+        self.metadataCheckBox.stateChanged.connect(self.checkBoxAction)
+
+        self.metadataStickyBox.stateChanged.connect(self.clearMetadataSelections)
+        # camera view: Mono and Stereo are an exclusive pair of actions
         self.stereoRadio.setChecked(True)# default state - remeber?
-        self.monoRadio.clicked.connect(self.cameraViewAction)
-        self.stereoRadio.clicked.connect(self.cameraViewAction)
+        self.monoRadio.triggered.connect(self.cameraViewAction)
+        self.stereoRadio.triggered.connect(self.cameraViewAction)
         # the guided fish marking follows these buttons
         for btn in [self.recordBtn, self.measureBtn, self.trainBtn, self.stereoRadio]:
             btn.toggled.connect(self.updateFishGuide)
 
         # grid cehckbox
-        self.gridCheck.stateChanged.connect(self.gridBoxAction)
+        self.gridCheck.toggled.connect(self.gridBoxAction)
         
         #  connect the GUI signals and slots
         self.actionExit.triggered.connect(self.close)
@@ -378,47 +361,277 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playLastIndex=None
         self.speedSet()
 
-        # Keep tools in three compact rows, leaving more height for the images.
-        measurementRow = QHBoxLayout()
-        split = self.horizontalLayout_3.indexOf(self.measureBtn)
-        while self.horizontalLayout_3.count() > split:
-            measurementRow.addItem(self.horizontalLayout_3.takeAt(split))
-        self.verticalLayout_4.insertLayout(1, measurementRow)
-        while self.horizontalLayout_2.itemAt(0).widget() is not self.metadataCheckBox:
-            self.horizontalLayout_3.addItem(self.horizontalLayout_2.takeAt(0))
-        self.verticalLayout_4.setContentsMargins(4, 2, 4, 2)
-        self.verticalLayout_4.setSpacing(3)
-        self.horizontalLayout_20.setContentsMargins(4, 0, 4, 0)
-        for row in [self.horizontalLayout_3, measurementRow, self.horizontalLayout_2]:
-            row.setSpacing(4)
-        self.playBtn.setFixedWidth(60)
-        self.playBtn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.playSpeedLabel.setText('Speed')
-        self.playSpeedLabel.setToolTip('Playback speed (frames per second)')
-        self.playSpeedRowLayout.insertWidget(0, self.playSpeedLabel)
+        # the icons and the style sheets of the Record and Play buttons follow the light / dark theme
+        theme.notifier.changed.connect(self.refreshTheme)
+        self.refreshTheme()
+        self.updateDeploymentLabel()
+        self.updateMeasureWidgets()
+        # widths the navigation bar needs without the sample and speed controls, and for each of them: see fitNavBar
+        self.navBar.layout().activate()
+        spacing=self.navBar.layout().spacing()
+        self.navWidths=(self.navBar.minimumSizeHint().width(), self.sampleBox.sizeHint().width()+spacing, self.speedBox.sizeHint().width()+spacing)
+        self.navBar.installEventFilter(self)
 
-        # On smaller screens, scrolling remains available instead of cropping controls.
-        self.toolsScrollArea = self.horizontalScrollArea(self.dockWidgetContents_8)
-        self.toolsDockWidget.setWidget(self.toolsScrollArea)
-        self.headerScrollArea = HorizontalScrollArea(self.centralwidget)
-        self.verticalLayout.replaceWidget(self.upperFrame, self.headerScrollArea)
-        self.horizontalScrollArea(self.upperFrame, self.headerScrollArea)
+    ######################0. WINDOW LAYOUT################################
 
-    def horizontalScrollArea(self, content, area=None):
-        if area is None:
-            area = HorizontalScrollArea(self)
-        area.setFrameShape(QFrame.Shape.NoFrame)
-        area.setWidgetResizable(True)
-        area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        area.setWidget(content)
-        content.ensurePolished()
-        content.layout().activate()
-        # Reserve scrollbar height only when the content actually needs scrolling.
-        content.installEventFilter(area)
-        area.updateContentHeight()
-        area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        return area
+    def setupToolBar(self):
+        '''
+        setupToolBar builds the main toolbar. Most buttons are tool buttons on the actions of the menus, so a menu item
+        and its button share text, icon, enabled and checked state. A button is hidden through the toolbar action that
+        addWidget returns (self.toolbarAction), not through the menu action: the menu item stays, disabled.
+        '''
+        bar=QToolBar('Main toolbar', self)
+        bar.setObjectName('mainToolBar')
+        bar.setMovable(False)
+        bar.setFloatable(False)
+        bar.setIconSize(QSize(20, 20))
+        bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, bar)
+        self.mainToolBar=bar
+        self.toolbarAction={}
+
+        def toolButton(action, parent):
+            button=QToolButton(parent)
+            button.setDefaultAction(action)
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            button.setIconSize(bar.iconSize())
+            button.setAutoRaise(True)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            return button
+
+        def addTool(action):
+            self.toolbarAction[action]=bar.addWidget(toolButton(action, bar))
+
+        bar.addAction(self.actionLoad)
+        bar.addSeparator()
+        # Record has an action of its own in the toolbar, kept in step with the menu action: while recording the
+        # button is filled red and needs a white icon, which would be invisible in the menu
+        self.recordToolAction=QAction(self)
+        self.recordToolAction.setCheckable(True)
+        self.recordToolAction.setText(self.recordBtn.text())
+        self.recordToolAction.setToolTip(self.recordBtn.toolTip())
+        self.recordBtn.toggled.connect(self.recordToolAction.setChecked)
+        self.recordBtn.changed.connect(lambda: self.recordToolAction.setEnabled(self.recordBtn.isEnabled()))
+        self.recordToolAction.triggered.connect(self.recordBtn.trigger)
+        bar.addAction(self.recordToolAction)
+        bar.addSeparator()
+        # Mono and Stereo are one exclusive choice, drawn as two joined buttons
+        modeGroup=QActionGroup(self)
+        modeGroup.addAction(self.monoRadio)
+        modeGroup.addAction(self.stereoRadio)
+        modeBox=QWidget(bar)
+        row=QHBoxLayout(modeBox)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(0)
+        for action, position in [(self.monoRadio, 'first'), (self.stereoRadio, 'last')]:
+            button=toolButton(action, modeBox)
+            button.setProperty('segment', position)
+            row.addWidget(button)
+        bar.addWidget(modeBox)
+        bar.addSeparator()
+        addTool(self.measureBtn)
+        self.measurementBox=QComboBox(bar)
+        self.measurementBox.setToolTip('Measurement type')
+        self.measurementBox.setMinimumWidth(110)
+        self.toolbarAction[self.measurementBox]=bar.addWidget(self.measurementBox)
+        bar.addSeparator()
+        addTool(self.linkBtn)
+        addTool(self.delLinkBtn)
+        addTool(self.editSpeciesBtn)
+        # the selected target: "Target: 3"
+        self.targetBox=QWidget(bar)
+        self.targetBox.setToolTip('The selected target')
+        row=QHBoxLayout(self.targetBox)
+        row.setContentsMargins(8, 0, 8, 0)
+        row.setSpacing(4)
+        self.label_4=QLabel('Target:', self.targetBox)
+        self.targetLinkLabel=QLabel('', self.targetBox)
+        self.targetLinkLabel.setMinimumWidth(24)
+        boldFont=self.targetLinkLabel.font()
+        boldFont.setBold(True)
+        self.targetLinkLabel.setFont(boldFont)
+        row.addWidget(self.label_4)
+        row.addWidget(self.targetLinkLabel)
+        self.toolbarAction[self.targetBox]=bar.addWidget(self.targetBox)
+        bar.addSeparator()
+        bar.addAction(self.targetCommentBtn)
+        bar.addAction(self.frameCommentBtn)
+        bar.addSeparator()
+        bar.addAction(self.labelCheck)
+        bar.addAction(self.closeupCheck)
+        bar.addAction(self.showDataCheck)
+
+    def setupStatusBar(self):
+        '''
+        setupStatusBar puts the mode, the annotator and the deployment at the right of the status bar. Messages
+        (the guided fish marking uses them) stay at the left. A measurement quality chip (QLabel#measureChip) goes
+        in front of the mode label: self.statusBar.insertPermanentWidget(0, chip).
+        '''
+        bar=self.statusBar
+        self.modeLabel=QLabel()
+        self.modeLabel.setContentsMargins(10, 0, 10, 0)
+        # the annotator's name is read back by writeFrameData, so it has a label of its own
+        self.annotatorBox=QWidget()
+        row=QHBoxLayout(self.annotatorBox)
+        row.setContentsMargins(10, 0, 10, 0)
+        row.setSpacing(4)
+        row.addWidget(QLabel('Annotator:'))
+        self.annotatorLabel=QLabel()
+        self.annotatorLabel.setObjectName('annotatorLabel')
+        self.annotatorLabel.setStyleSheet('color: palette(window-text);')
+        row.addWidget(self.annotatorLabel)
+        self.deploymentBox=QLabel()
+        self.deploymentBox.setObjectName('deploymentBox')
+        self.deploymentBox.setContentsMargins(10, 0, 10, 0)
+        self.deploymentBox.setStyleSheet('color: palette(window-text);')
+        for widget in [self.modeLabel, self.annotatorBox, self.deploymentBox]:
+            bar.addPermanentWidget(widget)
+        self.recordBtn.toggled.connect(self.updateStatusMode)
+        self.trainBtn.toggled.connect(self.updateStatusMode)
+
+    def updateStatusMode(self, *args):
+        '''
+        updateStatusMode shows in the status bar whether we are viewing or recording.
+        '''
+        recording=self.recordBtn.isChecked()
+        if recording:
+            text='\u25cf Recording'
+            if self.trainBtn.isChecked():
+                text+=' (training set)'
+            self.modeLabel.setStyleSheet('color: '+theme.colors()['record']+'; font-weight: 600;')
+        else:
+            text='Viewing'
+            self.modeLabel.setStyleSheet('')
+        self.modeLabel.setText(text)
+        self.annotatorBox.setVisible(recording)
+
+    def updateDeploymentLabel(self):
+        '''
+        updateDeploymentLabel shows the project and deployment in the window title and in the status bar.
+        '''
+        if self.deployment:
+            name=self.activeProject+': '+self.deployment
+            self.deploymentBox.setText(name)
+            self.deploymentBox.setToolTip(getattr(self, 'deploymentPath', ''))
+            self.setWindowTitle('SEBASTES \u2014 '+name)
+        else:
+            self.deploymentBox.setText('No deployment loaded')
+            self.deploymentBox.setToolTip('')
+            self.setWindowTitle('SEBASTES')
+
+    def refreshTheme(self):
+        '''
+        refreshTheme sets the icons and the style sheets of the Record and Play buttons for the light or dark
+        theme. It runs at start-up and whenever the system theme changes.
+        '''
+        icon=theme.icon
+        for action, name in [(self.actionLoad, 'open-folder'), (self.copyBtn, 'copy-images'), (self.labelCheck, 'labels'),
+                (self.showDataCheck, 'data-table'), (self.closeupCheck, 'closeup'), (self.gridCheck, 'grid'),
+                (self.measureBtn, 'measure'), (self.linkBtn, 'link'), (self.delLinkBtn, 'unlink'), (self.editSpeciesBtn, 'species'),
+                (self.targetCommentBtn, 'target-comment'), (self.frameCommentBtn, 'frame-comment'), (self.computeMatchBox, 'auto-match'),
+                (self.recomputeBtn, 'recompute'), (self.trainBtn, 'training-set'), (self.clearGridBtn, 'delete'),
+                (self.monoRadio, 'mono'), (self.stereoRadio, 'stereo'),
+                (self.speciesDockWidget.toggleViewAction(), 'species'), (self.metadataDockWidget.toggleViewAction(), 'metadata'),
+                (self.measurementsDock.toggleViewAction(), 'measurements')]:
+            action.setIcon(icon(name))
+        self.recordBtn.setIcon(icon('record', color='record', onColor='record'))
+        self.recordToolAction.setIcon(icon('record', color='record', onColor='#ffffff'))
+        for button, name in [(self.firstBtn, 'first'), (self.prevSampleBtn, 'prev-sample'), (self.prevFrameBtn, 'prev-frame'),
+                (self.nextFrameBtn, 'next-frame'), (self.nextSampleBtn, 'next-sample'), (self.lastBtn, 'last'),
+                (self.lastFrameBtn, 'go-to-last'), (self.adjLeftBtn, 'adjust-image'), (self.adjRightBtn, 'adjust-image')]:
+            button.setIcon(icon(name))
+        self.mainToolBar.widgetForAction(self.recordToolAction).setStyleSheet(theme.recordButtonStyle())
+        self.playBtn.setStyleSheet(theme.playButtonStyle())
+        self.updatePlayButton()
+        self.updateStatusMode()
+
+    def showTools(self, tools, visible):
+        '''
+        showTools shows or hides the toolbar buttons of actions and widgets that were put in the toolbar. An action
+        hidden here keeps its menu item.
+        '''
+        for tool in tools:
+            self.toolbarAction[tool].setVisible(visible)
+        self.updateToolbarSeparators()
+
+    def updateToolbarSeparators(self):
+        '''
+        updateToolbarSeparators shows a separator only between two groups of visible buttons.
+        '''
+        haveButton=False
+        pending=None
+        for action in self.mainToolBar.actions():
+            if action.isSeparator():
+                action.setVisible(False)
+                if haveButton:
+                    pending=action
+            elif action.isVisible():
+                if pending is not None:
+                    pending.setVisible(True)
+                    pending=None
+                haveButton=True
+
+    def updateMeasureWidgets(self):
+        # Measure Target and its measurement list are shown only while Measure Target is enabled
+        self.showTools(self.measureWidgets, self.measureBtn.isEnabled())
+
+    def setNavEnabled(self, enabled):
+        for button in self.navWidgets:
+            button.setEnabled(enabled)
+
+    def eventFilter(self, obj, event):
+        # the speed and sample controls give way when the navigation bar gets narrow
+        if obj is self.navBar and event.type()==QEvent.Type.Resize:
+            self.fitNavBar()
+        return QMainWindow.eventFilter(self, obj, event)
+
+    def fitNavBar(self):
+        '''
+        fitNavBar hides the speed controls, and then the sample controls, of the navigation bar when there is no room
+        for them. Their minimum width is 1 in the layout, so the window can be made narrow. They come back when the
+        bar is wide enough again.
+        '''
+        base, sample, speed=self.navWidths
+        width=self.navBar.width()
+        self.speedBox.setVisible(width>=base+sample+speed)
+        self.sampleBox.setVisible(width>=base+sample)
+
+    def updatePlayButton(self):
+        # the button says what it does next
+        if self.playBtn.isChecked():
+            self.playBtn.setText('Pause')
+            self.playBtn.setIcon(theme.icon('pause'))
+        else:
+            self.playBtn.setText('Play')
+            self.playBtn.setIcon(theme.icon('play', color='accentText'))
+
+    def setMatchThreshold(self):
+        # the threshold is kept in a line edit that is never shown: the Auto Match code reads its text
+        try:
+            current=float(self.matchThresholdEdit.text())
+        except ValueError:
+            current=30.0
+        value, ok=QInputDialog.getDouble(self, 'Match Threshold', 'Largest error (px) accepted for an Auto Match:', current, 0.1, 1000, 1)
+        if ok:
+            self.matchThresholdEdit.setText('%g' % value)
+
+    def showAbout(self):
+        version=''
+        try:
+            with open(os.path.join(self.baseDir, 'version.txt')) as f:
+                match=re.search(r'filevers=\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)', f.read())
+            if match:
+                parts=list(match.groups())
+                while len(parts)>2 and parts[-1]=='0':
+                    parts.pop()
+                version='Version '+'.'.join(parts)+'<br>'
+        except OSError:
+            pass
+        QMessageBox.about(self, 'About SEBASTES', '<h3>SEBASTES</h3>'+version+
+            '<p>Underwater stereo camera analysis: view and annotate left and right images or videos, mark and measure fish, '
+            'assign species and frame metadata, and get 3D range and length by stereo triangulation.</p>'
+            '<p>Developed by NOAA Fisheries employees Kresimir Williams and Rick Towler. Not an official government product.</p>')
+
 
     ######################1. SETUP FUNCTIONS################################
     
@@ -750,7 +963,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 conn.executescript(script)
                 conn.close()
                 QMessageBox.information(self, "NOTE", 'Created an empty "Application.db" in the SEBASTES/db folder.\n\n'+
-                    'Before loading a deployment, use File > Setup Profiles, Species, Etc to create a species collection and a profile.')
+                    'Before loading a deployment, use Settings > Profiles to create a species collection and a profile.')
         except:
             self.showError()
 
@@ -855,14 +1068,16 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.recordBtn.setChecked(False)
         self.recordBtn.setEnabled(False)
         self.playBtn.setEnabled(False)
+        self.copyBtn.setEnabled(False)
+        self.setNavEnabled(False)
         self.imageSlider.setEnabled(True)
         for widget in self.recordEnableWidgets:
             widget.setEnabled(False)
-        for widget in self.recordOnlyWidgets:
-            widget.hide()
+        self.showTools(self.recordOnlyWidgets, False)
         for dock in [self.speciesDockWidget, self.metadataDockWidget, self.measurementsDock]:
             dock.hide()
-        self.deploymentBox.setText('')
+        self.maxFrame.setText('/ 0')
+        self.updateDeploymentLabel()
         self.clearMarks()
         for obj in [self.gvLeft, self.gvRight]:
             obj.clearViewer()
@@ -1133,7 +1348,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         
     def setupDeployment(self):
         try:
-            self.deploymentBox.setText(self.activeProject+":"+self.deployment)
+            self.updateDeploymentLabel()
             # clear out gv transform
             self.gvRight.resetTransform()
             self.gvLeft.resetTransform()
@@ -1267,12 +1482,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
             self.minFr=min(min(self.leftImageFrames), min(self.rightImageFrames))
             self.maxFr=max(max(self.leftImageFrames), max(self.rightImageFrames))
-            self.minFrame.setText(str(self.minFr))
-            self.maxFrame.setText(str(self.maxFr))
+            self.maxFrame.setText('/ '+str(self.maxFr))
             self.imageSlider.setMinimum(0)
             self.imageSlider.setMaximum(len(self.leftImageDict)-1)
             self.imageSlider.setSingleStep(1)
             self.recordBtn.setEnabled(True)
+            self.copyBtn.setEnabled(True)
+            self.setNavEnabled(True)
             self.toggleRecord()
             if self.imageSlider.value()==1:
                 # the slider is already there (an earlier deployment) and sends no valueChanged
@@ -1589,12 +1805,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def play(self):
         if self.playBtn.isChecked():
-            self.playBtn.setText('Pause')
             self.playStartIndex=None
             self.playTimer.start()
         else:
-            self.playBtn.setText('Play')
             self.playTimer.stop()
+        self.updatePlayButton()
 
     def stopPlay(self):
         if self.playBtn.isChecked():
@@ -1670,13 +1885,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         else:
             return QMainWindow.event(self, event)
 
-    def eventFilter(self, obj, event):
-        # show Measure Target only while it is enabled
-        if obj==self.measureBtn and event.type()==QEvent.EnabledChange:
-            for widget in self.measureWidgets:
-                widget.setVisible(self.measureBtn.isEnabled())
-        return QMainWindow.eventFilter(self, obj, event)
-
     def __keyPressEvent(self, ivObj, ev):
         if self.noLoad:
             return
@@ -1700,52 +1908,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         # navigate though images
         elif ev.key() in [ Qt.Key_Right, Qt.Key_Left]:
-            if self.measureBtn.isChecked():
-                return# dont advance frame while measurements are taking place
-            frameIndex=self.imageSlider.value()
-            try:
-                sampleRate = float(self.sampleRateEdit.text())
-            except ValueError:
-                sampleRate = 1
-            if sampleRate < 1:
-                sampleRate = 1
-            try:
-                offset = float(self.rateOffsetEdit.text())
-            except:
-                offset = 0
-            if (ev.key() == Qt.Key_Right) or (ev.key() == Qt.Key_Left):
-                if (ev.key() == Qt.Key_Right):
-                    if (ev.modifiers() == Qt.ControlModifier):
-                        #  increment one image
-                        targetIndex=frameIndex + 1
-                    else:
-                        #  increment one sample step
-                        targetIndex=int(round((float(frameIndex + sampleRate-offset)) /
-                                        float(sampleRate)) * sampleRate)+offset
-                else :
-                    if (ev.modifiers() == Qt.ControlModifier):
-                        #  decrement one image
-                        targetIndex=frameIndex - 1
-                    else:
-                        #  decrement one sample step
-                        targetIndex=int(round((float(frameIndex - sampleRate-offset)) /
-                                        float(sampleRate)) * sampleRate)+offset
+            # the navigation buttons come to the same place
+            self.stepFrame(1 if ev.key() == Qt.Key_Right else -1, ev.modifiers() == Qt.ControlModifier)
 
-
-
-
-            #  clamp the image numbers to a valid range
-            if targetIndex < 1:
-                targetIndex = 1
-            if targetIndex > self.imageSlider.maximum():
-                targetIndex = self.imageSlider.maximum()
-            #  check for linked data, null out if more than one frame out
-            if len(self.linkData)>0:
-                if not (targetIndex - self.linkData[0]) in [0, 1]:
-                    self.linkData=[]
-                    self.linkBtn.setChecked(False)
-            self.changeFrame(targetIndex)
-            
         elif (ev.key() == Qt.Key_Escape):
             halfPair=len(self.pairPoints)==1 # a pair that was started and is being cancelled
             if halfPair:
@@ -2774,7 +2939,61 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 frameIndex=self.leftImageFrames.index(int(frame))
                 
         if frameIndex:
-            self.changeFrame(frameIndex)
+            self.goToIndex(frameIndex)
+
+    def stepFrame(self, direction, oneFrame):
+        '''
+        stepFrame goes one frame (oneFrame) or one sample step forward (direction 1) or back (-1). The Left and Right
+        keys and the navigation buttons all come here.
+        '''
+        if self.measureBtn.isChecked():
+            self.statusBar.showMessage('Finish the measurement, or press Esc, before changing frame.', 4000)
+            return# dont advance frame while measurements are taking place
+        frameIndex=self.imageSlider.value()
+        try:
+            sampleRate = float(self.sampleRateEdit.text())
+        except ValueError:
+            sampleRate = 1
+        if sampleRate < 1:
+            sampleRate = 1
+        try:
+            offset = float(self.rateOffsetEdit.text())
+        except:
+            offset = 0
+        if oneFrame:
+            targetIndex=frameIndex + direction
+        else:
+            #  one sample step
+            targetIndex=int(round((float(frameIndex + direction*sampleRate-offset)) /
+                            float(sampleRate)) * sampleRate)+offset
+        #  the first image is not reached by stepping
+        if targetIndex < 1:
+            targetIndex = 1
+        self.goToIndex(targetIndex)
+
+    def goToIndex(self, targetIndex):
+        '''
+        goToIndex shows the frame at a slider position, as the arrow keys do: not while a measurement is taking
+        place, inside the range of the slider, with the link data of a target dropped when the frame is more than
+        one away, and with the data of the frame being left saved while recording (changeFrame).
+        '''
+        if self.noLoad:
+            return
+        if self.measureBtn.isChecked():
+            self.statusBar.showMessage('Finish the measurement, or press Esc, before changing frame.', 4000)
+            return
+        targetIndex=int(targetIndex)
+        #  clamp the image numbers to a valid range
+        if targetIndex > self.imageSlider.maximum():
+            targetIndex = self.imageSlider.maximum()
+        if targetIndex < self.imageSlider.minimum():
+            targetIndex = self.imageSlider.minimum()
+        #  check for linked data, null out if more than one frame out
+        if len(self.linkData)>0:
+            if not (targetIndex - self.linkData[0]) in [0, 1]:
+                self.linkData=[]
+                self.linkBtn.setChecked(False)
+        self.changeFrame(targetIndex)
         
     def editSpecies(self):
         dlg=editspeciesdlg.EditSpeciesDlg(self)
@@ -2859,8 +3078,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if widget in [self.measureBtn,  self.measurementBox] and self.monoRadio.isChecked(): # dont enable widgets for mono mode
                     continue
                 widget.setEnabled(True)
-            for widget in self.recordOnlyWidgets:
-                widget.show()
+            self.showTools(self.recordOnlyWidgets, True)
 
                 
 
@@ -2885,8 +3103,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 
             for widget in self.recordEnableWidgets:
                 widget.setEnabled(False)
-            for widget in self.recordOnlyWidgets:
-                widget.hide()
+            self.showTools(self.recordOnlyWidgets, False)
         self.resizeEvent(None)
 
 
@@ -2916,7 +3133,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         if getattr(self, 'mode', None)=='stereo':
             return True
         QMessageBox.warning(self, "ERROR", "3D measurements need a stereo calibration, but the profile of this deployment has no CalibrationFileName.\n\n"+
-            "Put the calibration file in the SEBASTES/calibrations folder, set CalibrationFileName in the profile (File > Setup Profiles, Species, Etc) "+
+            "Put the calibration file in the SEBASTES/calibrations folder, set CalibrationFileName in the profile (Settings > Profiles) "+
             "and load the deployment again.")
         return False
 
@@ -2931,7 +3148,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
             if not self.pairedTarget:
                 QMessageBox.warning(self, "ERROR", "The selected target is marked in one image only, so it can't be measured.\n\n"+
-                    "To create a stereo target, hold Shift (or tick Stereo Targets Only) and click the fish in the left image, then in the right image. "+
+                    "To create a stereo target, hold Shift (or tick Annotate > Stereo Targets Only) and click the fish in the left image, then in the right image. "+
                     "Then press Measure Target and draw the length in both images.")
                 self.measureBtn.setChecked(False)
                 return
@@ -3945,6 +4162,7 @@ if __name__ == "__main__":
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     app = QApplication(sys.argv)
+    theme.apply(app)
     form = SEBASTES()
     form.show()
     app.exec()

@@ -26,274 +26,86 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
     <property name="leftMargin">
-     <number>6</number>
+     <number>0</number>
     </property>
     <property name="topMargin">
-     <number>6</number>
+     <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>6</number>
+     <number>0</number>
     </property>
     <property name="bottomMargin">
-     <number>6</number>
+     <number>0</number>
     </property>
     <item>
-     <widget class="QFrame" name="upperFrame">
-      <property name="enabled">
-       <bool>true</bool>
+     <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="1,1">
+      <property name="spacing">
+       <number>6</number>
       </property>
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+      <property name="leftMargin">
+       <number>6</number>
       </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+      <property name="topMargin">
+       <number>6</number>
       </property>
-      <layout class="QGridLayout" name="gridLayout_2">
-       <property name="leftMargin">
-        <number>2</number>
-       </property>
-       <property name="topMargin">
-        <number>2</number>
-       </property>
-       <property name="rightMargin">
-        <number>2</number>
-       </property>
-       <property name="bottomMargin">
-        <number>2</number>
-       </property>
-       <item row="0" column="1">
-        <widget class="QLabel" name="deploymentBox">
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>No deployment loaded</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="10">
-        <widget class="QLabel" name="label_7">
-         <property name="text">
-          <string>Annotator</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="15">
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>\</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="17">
-        <widget class="QPushButton" name="lastFrameBtn">
-         <property name="text">
-          <string>Go to last 
-sampled frame</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="12">
-        <widget class="QLabel" name="label_18">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Sample Interval</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="9">
-        <spacer name="horizontalSpacer_6">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="0" column="16">
-        <widget class="QLabel" name="maxFrame">
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>0</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="13">
-        <widget class="QLabel" name="label_20">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Offset</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="14">
-        <widget class="QLabel" name="label_6">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Frame Number</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="13">
-        <widget class="QLineEdit" name="rateOffsetEdit">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>71</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>71</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>14</pointsize>
-          </font>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="12">
-        <widget class="QLineEdit" name="sampleRateEdit">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>71</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>71</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>14</pointsize>
-          </font>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="14">
-        <widget class="QLineEdit" name="frameBox">
-         <property name="minimumSize">
-          <size>
-           <width>91</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>91</width>
-           <height>41</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>14</pointsize>
-          </font>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="11">
-        <widget class="QLabel" name="annotatorLabel">
-         <property name="minimumSize">
-          <size>
-           <width>71</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="frameShape">
-          <enum>QFrame::Box</enum>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_19">
+      <property name="rightMargin">
+       <number>6</number>
+      </property>
       <property name="bottomMargin">
-       <number>5</number>
+       <number>6</number>
       </property>
       <item>
        <widget class="QFrame" name="frameLeft">
         <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
+         <enum>QFrame::NoFrame</enum>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_9">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_9">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>2</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
            <property name="bottomMargin">
-            <number>5</number>
+            <number>0</number>
            </property>
            <item>
-            <widget class="QPushButton" name="adjLeftBtn">
+            <widget class="QLabel" name="leftCaption">
              <property name="font">
               <font>
-               <pointsize>10</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
               </font>
              </property>
              <property name="text">
-              <string>Adjust image</string>
+              <string>Left camera</string>
              </property>
             </widget>
            </item>
@@ -310,6 +122,25 @@ sampled frame</string>
              </property>
             </spacer>
            </item>
+           <item>
+            <widget class="QToolButton" name="adjLeftBtn">
+             <property name="toolTip">
+              <string>Adjust the left image (brightness, contrast, gamma)</string>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="autoRaise">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>
@@ -321,26 +152,51 @@ sampled frame</string>
       <item>
        <widget class="QFrame" name="frameRight">
         <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
+         <enum>QFrame::NoFrame</enum>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_8">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_10">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>2</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
            <property name="bottomMargin">
-            <number>5</number>
+            <number>0</number>
            </property>
            <item>
-            <widget class="QPushButton" name="adjRightBtn">
+            <widget class="QLabel" name="rightCaption">
              <property name="font">
               <font>
-               <pointsize>10</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
               </font>
              </property>
              <property name="text">
-              <string>Adjust Image</string>
+              <string>Right camera</string>
              </property>
             </widget>
            </item>
@@ -357,6 +213,25 @@ sampled frame</string>
              </property>
             </spacer>
            </item>
+           <item>
+            <widget class="QToolButton" name="adjRightBtn">
+             <property name="toolTip">
+              <string>Adjust the right image (brightness, contrast, gamma)</string>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="autoRaise">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>
@@ -368,98 +243,471 @@ sampled frame</string>
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_12">
-      <property name="bottomMargin">
-       <number>10</number>
+     <widget class="QFrame" name="navBar">
+      <property name="frameShape">
+       <enum>QFrame::NoFrame</enum>
       </property>
-      <item>
-       <widget class="QFrame" name="frame_2">
-        <property name="maximumSize">
-         <size>
-          <width>251</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_6"/>
-       </widget>
-      </item>
-      <item>
-       <widget class="QFrame" name="frame_10">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_11">
-         <property name="spacing">
-          <number>2</number>
+      <layout class="QHBoxLayout" name="navLayout">
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+       <property name="topMargin">
+        <number>4</number>
+       </property>
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+       <property name="bottomMargin">
+        <number>4</number>
+       </property>
+       <item>
+        <widget class="QToolButton" name="firstBtn">
+         <property name="toolTip">
+          <string>First frame</string>
          </property>
-         <property name="topMargin">
-          <number>2</number>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
          </property>
-         <property name="bottomMargin">
-          <number>2</number>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
          </property>
-         <item>
-          <widget class="QLabel" name="minFrame">
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>0</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSlider" name="imageSlider">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QFrame" name="frame_11">
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_5">
-            <property name="leftMargin">
-             <number>0</number>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="prevSampleBtn">
+         <property name="toolTip">
+          <string>Previous sampled frame (Left)</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="prevFrameBtn">
+         <property name="toolTip">
+          <string>Previous frame (Ctrl+Left)</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="playBtn">
+         <property name="minimumSize">
+          <size>
+           <width>88</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>16</width>
+           <height>16</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Play or pause</string>
+         </property>
+         <property name="text">
+          <string>Play</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="nextFrameBtn">
+         <property name="toolTip">
+          <string>Next frame (Ctrl+Right)</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="nextSampleBtn">
+         <property name="toolTip">
+          <string>Next sampled frame (Right)</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="lastBtn">
+         <property name="toolTip">
+          <string>Last frame</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="lastFrameBtn">
+         <property name="toolTip">
+          <string>Go to the last sampled frame (the last frame with annotations)</string>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>18</width>
+           <height>18</height>
+          </size>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="imageSlider">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>60</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="frameLabel">
+         <property name="text">
+          <string>Frame</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="frameBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>64</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>64</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Frame number: type a number and press Enter</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="maxFrame">
+         <property name="text">
+          <string>/ 0</string>
+         </property>
+         <property name="toolTip">
+          <string>Last frame number</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="sampleBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>0</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="sampleLayout">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <property name="leftMargin">
+           <number>14</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="everyLabel">
+            <property name="text">
+             <string>Every</string>
             </property>
-            <property name="topMargin">
-             <number>0</number>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="sampleRateEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-            <property name="rightMargin">
-             <number>0</number>
+            <property name="minimumSize">
+             <size>
+              <width>44</width>
+              <height>0</height>
+             </size>
             </property>
-            <property name="bottomMargin">
-             <number>0</number>
+            <property name="maximumSize">
+             <size>
+              <width>44</width>
+              <height>16777215</height>
+             </size>
             </property>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
+            <property name="toolTip">
+             <string>Sample interval: the sample buttons and the Left and Right keys move this many frames</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="offsetLabel">
+            <property name="text">
+             <string>frames, offset</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="rateOffsetEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>44</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>44</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Offset of the sampled frames within the interval</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="placeholderText">
+             <string>0</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="speedBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>0</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="speedLayout">
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QFrame" name="navSeparator">
+            <property name="frameShape">
+             <enum>QFrame::VLine</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Sunken</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="playSpeedLabel">
+            <property name="text">
+             <string>Speed</string>
+            </property>
+            <property name="toolTip">
+             <string>Playback speed (frames per second)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSlider" name="playSpeedSlider">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Playback speed (frames per second)</string>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="singleStep">
+             <number>10</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="playSpeedBox">
+            <property name="minimumSize">
+             <size>
+              <width>96</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>110</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Playback speed (frames per second). Type a value to move the slider.</string>
+            </property>
+            <property name="suffix">
+             <string> fps</string>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -478,19 +726,64 @@ sampled frame</string>
      <string>File</string>
     </property>
     <addaction name="actionLoad"/>
-    <addaction name="separator"/>
-    <addaction name="actionCreate_New_Project"/>
-    <addaction name="actionProfiles"/>
-    <addaction name="actionGUI_settings"/>
-    <addaction name="actionGrid_setup"/>
-    <addaction name="actionSet_Active_Profiles"/>
-    <addaction name="actionImport_Export_Profiles"/>
-    <addaction name="actionviewApplicationDB"/>
-    <addaction name="actionedit_DB_tables"/>
+    <addaction name="copyBtn"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="labelCheck"/>
+    <addaction name="showDataCheck"/>
+    <addaction name="closeupCheck"/>
+    <addaction name="gridCheck"/>
+   </widget>
+   <widget class="QMenu" name="menuAnnotate">
+    <property name="title">
+     <string>Annotate</string>
+    </property>
+    <addaction name="recordBtn"/>
+    <addaction name="measureBtn"/>
+    <addaction name="linkBtn"/>
+    <addaction name="delLinkBtn"/>
+    <addaction name="editSpeciesBtn"/>
+    <addaction name="targetCommentBtn"/>
+    <addaction name="frameCommentBtn"/>
+    <addaction name="separator"/>
+    <addaction name="computeMatchBox"/>
+    <addaction name="actionMatchThreshold"/>
+    <addaction name="stereoOnlyCheckBox"/>
+    <addaction name="separator"/>
+    <addaction name="recomputeBtn"/>
+    <addaction name="trainBtn"/>
+    <addaction name="clearGridBtn"/>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="actionCreate_New_Project"/>
+    <addaction name="actionProfiles"/>
+    <addaction name="actionSet_Active_Profiles"/>
+    <addaction name="actionImport_Export_Profiles"/>
+    <addaction name="actionGUI_settings"/>
+    <addaction name="actionGrid_setup"/>
+    <addaction name="separator"/>
+    <addaction name="actionviewApplicationDB"/>
+    <addaction name="actionedit_DB_tables"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuAnnotate"/>
+   <addaction name="menuSettings"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="QDockWidget" name="metadataDockWidget">
    <property name="windowTitle">
@@ -501,6 +794,16 @@ sampled frame</string>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_4">
     <layout class="QVBoxLayout" name="verticalLayout_13">
+     <item>
+      <widget class="QCheckBox" name="metadataCheckBox">
+       <property name="toolTip">
+        <string>Collect habitat metadata for every frame while recording</string>
+       </property>
+       <property name="text">
+        <string>Collect metadata</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_8">
        <item>
@@ -1701,545 +2004,60 @@ frame</string>
     </layout>
    </widget>
   </widget>
-  <widget class="QDockWidget" name="toolsDockWidget">
-   <property name="windowTitle">
-    <string>Tools</string>
-   </property>
-   <attribute name="dockWidgetArea">
-    <number>4</number>
-   </attribute>
-   <widget class="QWidget" name="dockWidgetContents_8">
-    <layout class="QVBoxLayout" name="verticalLayout_4">
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <item>
-        <widget class="QPushButton" name="recordBtn">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>● Record</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="copyBtn">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Copy Images to...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="recomputeBtn">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Recompute 3D</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="trainBtn">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
-           <horstretch>105</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Create training set</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <property name="rightMargin">
-          <number>5</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_5">
-           <property name="text">
-            <string>Mode: </string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string/>
-         </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_20">
-          <item>
-           <widget class="QRadioButton" name="monoRadio">
-            <property name="text">
-             <string>Mono</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="stereoRadio">
-            <property name="text">
-             <string>Stereo</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QPushButton" name="measureBtn">
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Measure Target</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_8">
-         <property name="text">
-          <string>Measurement type</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="measurementBox"/>
-       </item>
-       <item>
-        <widget class="QPushButton" name="linkBtn">
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Link Target</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="editSpeciesBtn">
-         <property name="text">
-          <string>Edit Species</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_4">
-         <property name="text">
-          <string>Selected target:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="targetLinkLabel">
-         <property name="minimumSize">
-          <size>
-           <width>21</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="frameShape">
-          <enum>QFrame::Box</enum>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="delLinkBtn">
-         <property name="text">
-          <string>Delete Link</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_8">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QPushButton" name="targetCommentBtn">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Target Comment</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="frameCommentBtn">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Frame Comment</string>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QCheckBox" name="computeMatchBox">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Auto Match</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="matchThresholdEdit">
-         <property name="maximumSize">
-          <size>
-           <width>41</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-          </font>
-         </property>
-         <property name="inputMethodHints">
-          <set>Qt::ImhPreferNumbers</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_2">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Match Threshold</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="stereoOnlyCheckBox">
-         <property name="text">
-          <string>Stereo Targets Only</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_4">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="metadataCheckBox">
-         <property name="text">
-          <string>Collect metadata</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="closeupCheck">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Show Closeup Window</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="labelCheck">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Show Labels</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="showDataCheck">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Show Data</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="gridCheck">
-         <property name="text">
-          <string>Grid Overlay</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="clearGridBtn">
-         <property name="text">
-          <string>Clear Grid Data</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_7">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <item>
-          <widget class="QPushButton" name="playBtn">
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Play</string>
-           </property>
-           <property name="checkable">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <layout class="QVBoxLayout" name="playSpeedLayout">
-           <property name="spacing">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="playSpeedLabel">
-             <property name="text">
-              <string>Playback speed</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="playSpeedRowLayout">
-             <item>
-              <widget class="QSlider" name="playSpeedSlider">
-               <property name="minimumSize">
-                <size>
-                 <width>51</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>120</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-               <property name="toolTip">
-                <string>Playback speed (frames per second)</string>
-               </property>
-               <property name="minimum">
-                <number>1</number>
-               </property>
-               <property name="maximum">
-                <number>100</number>
-               </property>
-               <property name="singleStep">
-                <number>10</number>
-               </property>
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QSpinBox" name="playSpeedBox">
-               <property name="maximumSize">
-                <size>
-                 <width>104</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-               <property name="toolTip">
-                <string>Playback speed (frames per second). Type a value to move the slider.</string>
-               </property>
-               <property name="suffix">
-                <string> fps</string>
-               </property>
-               <property name="minimum">
-                <number>1</number>
-               </property>
-               <property name="maximum">
-                <number>100</number>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </widget>
-  </widget>
   <action name="actionLoad">
    <property name="text">
-    <string>Load Deployment...</string>
+    <string>Open Deployment…</string>
+   </property>
+   <property name="iconText">
+    <string>Open</string>
+   </property>
+   <property name="toolTip">
+    <string>Open a deployment folder</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
   </action>
   <action name="actionProfiles">
    <property name="text">
-    <string>Setup Profiles, Species, Etc</string>
+    <string>Profiles…</string>
    </property>
    <property name="toolTip">
-    <string>create and edit profiles</string>
+    <string>Create and edit profiles, species and metadata</string>
    </property>
   </action>
   <action name="actionGUI_settings">
    <property name="text">
-    <string>GUI settings</string>
+    <string>GUI Settings…</string>
    </property>
    <property name="toolTip">
-    <string>Change fonts and line colors etc.</string>
+    <string>Change fonts, line colors, etc.</string>
    </property>
   </action>
   <action name="actionGrid_setup">
    <property name="text">
-    <string>Grid setup</string>
+    <string>Grid Setup…</string>
    </property>
   </action>
   <action name="actionSet_Active_Profiles">
    <property name="text">
-    <string>Set Active Profiles, Species Etc.</string>
+    <string>Set Active Profiles…</string>
    </property>
    <property name="toolTip">
-    <string>Set which profiles, metadata group and species groups can be selected</string>
+    <string>Set which profiles, metadata groups and species groups can be selected</string>
    </property>
   </action>
   <action name="actionImport_Export_Profiles">
    <property name="text">
-    <string>Import/Export Profiles</string>
+    <string>Import/Export Profiles…</string>
    </property>
    <property name="toolTip">
     <string>Import or export profiles from text files</string>
@@ -2247,26 +2065,269 @@ frame</string>
   </action>
   <action name="actionCreate_New_Project">
    <property name="text">
-    <string>Create New Project</string>
+    <string>Create New Project…</string>
    </property>
    <property name="toolTip">
-    <string>create new projects</string>
+    <string>Create a new project</string>
    </property>
   </action>
   <action name="actionviewApplicationDB">
    <property name="text">
-    <string>view Application DB</string>
+    <string>View Application DB…</string>
    </property>
    <property name="toolTip">
-    <string>view teh application level database (read only)</string>
+    <string>View the application database (read only)</string>
    </property>
   </action>
   <action name="actionedit_DB_tables">
    <property name="text">
-    <string>edit DB tables</string>
+    <string>Edit DB Tables…</string>
    </property>
    <property name="toolTip">
-    <string>edit databaset tables</string>
+    <string>Edit the tables of the databases</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About SEBASTES</string>
+   </property>
+   <property name="toolTip">
+    <string>About this program</string>
+   </property>
+  </action>
+  <action name="copyBtn">
+   <property name="text">
+    <string>Copy Images To…</string>
+   </property>
+   <property name="iconText">
+    <string>Copy Images</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy the images of the current frame to a folder</string>
+   </property>
+  </action>
+  <action name="labelCheck">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Labels</string>
+   </property>
+   <property name="iconText">
+    <string>Labels</string>
+   </property>
+   <property name="toolTip">
+    <string>Show or hide the labels of the marks and measurements</string>
+   </property>
+  </action>
+  <action name="showDataCheck">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Data Table</string>
+   </property>
+   <property name="iconText">
+    <string>Data Table</string>
+   </property>
+   <property name="toolTip">
+    <string>Show the table of the targets of this deployment</string>
+   </property>
+  </action>
+  <action name="closeupCheck">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Close-up Window</string>
+   </property>
+   <property name="iconText">
+    <string>Close-up</string>
+   </property>
+   <property name="toolTip">
+    <string>Show a magnified view of the area under the cursor</string>
+   </property>
+  </action>
+  <action name="gridCheck">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Grid Overlay</string>
+   </property>
+   <property name="toolTip">
+    <string>Draw a counting grid over the image</string>
+   </property>
+  </action>
+  <action name="recordBtn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Record</string>
+   </property>
+   <property name="toolTip">
+    <string>Record: mark and measure fish. Stop recording to review the annotations</string>
+   </property>
+  </action>
+  <action name="measureBtn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Measure Target</string>
+   </property>
+   <property name="iconText">
+    <string>Measure</string>
+   </property>
+   <property name="toolTip">
+    <string>Draw the length of the selected target in both images</string>
+   </property>
+  </action>
+  <action name="linkBtn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Link Target&#9;Home</string>
+   </property>
+   <property name="iconText">
+    <string>Link</string>
+   </property>
+   <property name="toolTip">
+    <string>Link the selected target to a target in the next frame (Home)</string>
+   </property>
+  </action>
+  <action name="delLinkBtn">
+   <property name="text">
+    <string>Delete Link</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete the link of the selected target</string>
+   </property>
+  </action>
+  <action name="editSpeciesBtn">
+   <property name="text">
+    <string>Edit Species…</string>
+   </property>
+   <property name="iconText">
+    <string>Edit Species</string>
+   </property>
+   <property name="toolTip">
+    <string>Change the species of targets</string>
+   </property>
+  </action>
+  <action name="targetCommentBtn">
+   <property name="text">
+    <string>Target Comment…</string>
+   </property>
+   <property name="iconText">
+    <string>Target Comment</string>
+   </property>
+   <property name="toolTip">
+    <string>Add a comment to the selected target</string>
+   </property>
+  </action>
+  <action name="frameCommentBtn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Frame Comment…</string>
+   </property>
+   <property name="iconText">
+    <string>Frame Comment</string>
+   </property>
+   <property name="toolTip">
+    <string>Show or hide the comment window of this frame</string>
+   </property>
+  </action>
+  <action name="computeMatchBox">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Auto Match&#9;A</string>
+   </property>
+   <property name="iconText">
+    <string>Auto Match</string>
+   </property>
+   <property name="toolTip">
+    <string>Find the matching point in the other image automatically (A)</string>
+   </property>
+  </action>
+  <action name="actionMatchThreshold">
+   <property name="text">
+    <string>Match Threshold…</string>
+   </property>
+   <property name="toolTip">
+    <string>Largest error accepted for an automatic match</string>
+   </property>
+  </action>
+  <action name="stereoOnlyCheckBox">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Stereo Targets Only</string>
+   </property>
+   <property name="toolTip">
+    <string>Every click marks a stereo target, without holding Shift</string>
+   </property>
+  </action>
+  <action name="recomputeBtn">
+   <property name="text">
+    <string>Recompute 3D</string>
+   </property>
+   <property name="toolTip">
+    <string>Recompute the 3D positions and lengths of all targets with the current calibration</string>
+   </property>
+  </action>
+  <action name="trainBtn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Create Training Set</string>
+   </property>
+   <property name="toolTip">
+    <string>Draw bounding boxes to create a training set</string>
+   </property>
+  </action>
+  <action name="clearGridBtn">
+   <property name="text">
+    <string>Clear Grid Data</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete the grid data of this frame</string>
+   </property>
+  </action>
+  <action name="monoRadio">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Mono</string>
+   </property>
+   <property name="toolTip">
+    <string>Work with one camera only</string>
+   </property>
+  </action>
+  <action name="stereoRadio">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Stereo</string>
+   </property>
+   <property name="toolTip">
+    <string>Work with both cameras</string>
    </property>
   </action>
  </widget>
