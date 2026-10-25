@@ -1673,11 +1673,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.showViews()
             self.fitNavBar()
             self.toggleRecord()
-            if self.imageSlider.value()==1:
+            # the first frame is the first of the slider: frame 0 of a video, the first image file of a folder of images
+            if self.imageSlider.value()==self.imageSlider.minimum():
                 # the slider is already there (an earlier deployment) and sends no valueChanged
                 self.__changeImage()
             else:
-                self.imageSlider.setValue(1)
+                self.imageSlider.setValue(self.imageSlider.minimum())
             self.playBtn.setEnabled(True)
             self.measurementsDock.setDeployment(self.dataDB, self.deployment)
             if self.measurementsDock.isHidden():
@@ -3121,7 +3122,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 #get my index from targets
                 frameIndex=self.leftImageFrames.index(int(frame))
                 
-        if frameIndex:
+        if frameIndex is not None:
             self.goToIndex(frameIndex)
 
     def stepFrame(self, direction, oneFrame):
@@ -3149,9 +3150,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             #  one sample step
             targetIndex=int(round((float(frameIndex + direction*sampleRate-offset)) /
                             float(sampleRate)) * sampleRate)+offset
-        #  the first image is not reached by stepping
-        if targetIndex < 1:
-            targetIndex = 1
+        #  goToIndex keeps the index inside the slider: the first frame (index 0) is reached by stepping as by the First button
         self.goToIndex(targetIndex)
 
     def goToIndex(self, targetIndex):
