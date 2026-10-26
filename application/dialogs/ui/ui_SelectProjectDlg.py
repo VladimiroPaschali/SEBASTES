@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'SelectProjectDlg.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,7 @@ class Ui_selectProjectDlg(object):
     def setupUi(self, selectProjectDlg):
         if not selectProjectDlg.objectName():
             selectProjectDlg.setObjectName(u"selectProjectDlg")
-        selectProjectDlg.resize(516, 189)
+        selectProjectDlg.resize(700, 189)
         self.verticalLayout = QVBoxLayout(selectProjectDlg)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.projectView = QTableView(selectProjectDlg)

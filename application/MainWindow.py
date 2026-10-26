@@ -21,6 +21,7 @@ import json
 import bisect
 import random
 import sqlite3
+import annotationundo
 from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg, shortcutsdlg
 from exif import Image
@@ -60,6 +61,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.noLoad=True
         self.matchMode=False
         self.pairPoints=[]
+        self.markUndoHistory=[]
         self.linkData=[]
         self.garbage=[]
         self.datadlg = None
@@ -202,6 +204,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playKey=QShortcut(QKeySequence(Qt.Key.Key_Space), self)
         self.playKey.setAutoRepeat(False)
         self.playKey.activated.connect(self.playBtn.click)
+        self.undoMarkKey=QShortcut(QKeySequence('Ctrl+Z'), self)
+        self.undoMarkKey.setAutoRepeat(False)
+        self.undoMarkKey.setEnabled(False)
+        self.undoMarkKey.activated.connect(self.undoLastMark)
+        self.recordBtn.toggled.connect(self.undoMarkKey.setEnabled)
         # a key that is held down must not toggle again and again: the single-key actions and the ones that open a window act once
         for action in [self.recordBtn, self.measureBtn, self.labelCheck, self.actionLoad, self.actionShortcuts]:
             action.setAutoRepeat(False)
@@ -1444,6 +1451,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         '''
         closeDeployment saves and closes the deployment that is open, if any.
         '''
+        self.markUndoHistory.clear()
         self.stopPlay()
         self.clearMeasureChip()
         if self.dataDB is not None:
@@ -2103,6 +2111,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         adjusting brightness, gamma, or contrast or by moving the image
         slider.
         '''
+        self.markUndoHistory.clear()
         if self.noLoad:
             # no deployment (an old row of the Measurements panel, a slider that is still moving): there are no images to read
             return
@@ -2329,6 +2338,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def __keyPressEvent(self, ivObj, ev):
         if self.noLoad:
             return
+        if ev.matches(QKeySequence.StandardKey.Undo):
+            self.undoLastMark()
+            return
         # which key is being held down
         self.key=ev.key()
 
@@ -2393,18 +2405,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.pairPoints=[]
         
         elif (ev.key() == Qt.Key_Z):
-            # this is to quick undo auto targets only (and only while recording: outside Record the marks are read only)
-            if self.recordBtn.isChecked() and self.computeMatchBox.isChecked():
-                # remove current mark and delete from db
-                self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameText()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameText()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameText()+" AND target_number = "+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                # remove mark
-                self.gvLeft.removeItem(self.activeMark[self.gvLeft])
-                self.gvLeft.update()
-                self.gvRight.removeItem(self.activeMark[self.gvRight])
-                self.gvRight.update()
-                self.measurementsDock.refresh()
+            if ev.modifiers() == Qt.NoModifier and self.computeMatchBox.isChecked():
+                self.undoLastMark()
                 
     def __keyReleaseEvent(self,ivObj, ev):
         # no key is being held down right now
@@ -2487,10 +2489,114 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def imageClick(self, imageObj, clickLoc, button, currentKbKey, item):
         # whatever the click did (the handler has many ways out), the epipolar hints show the pair it left half done
+        before=None
+        if (button == Qt.MouseButton.LeftButton and not self.noLoad and self.recordBtn.isChecked()
+                and not self.measureBtn.isChecked() and not self.makeBoxes):
+            before=self.captureMarkUndo()
         try:
             self.handleImageClick(imageObj, clickLoc, button, currentKbKey, item)
         finally:
             self.updateEpipolar()
+            if before is not None:
+                after=self.captureMarkUndo()
+                if (before['rows'], before['state']['pair'], before['state']['step'], before['state']['lines']) != (
+                        after['rows'], after['state']['pair'], after['state']['step'], after['state']['lines']):
+                    self.markUndoHistory.append((before, after))
+                    self.markUndoHistory=self.markUndoHistory[-100:]
+
+    def captureMarkUndo(self):
+        views=(self.gvLeft, self.gvRight)
+        lines=[]
+        for view, item in self.fishLines.items():
+            line=item.getLine()
+            lines.append((views.index(view), line.x1(), line.y1(), line.x2(), line.y2()))
+        scope=(self.activeProject, self.deployment, int(self.frameText()))
+        return dict(scope=scope, rows=annotationundo.capture(self.dataDB.db, scope), state=dict(
+            pair=[(views.index(view), x, y) for view, x, y in self.pairPoints],
+            step=self.fishStep, target=self.currentTarget, fishTarget=self.fishTarget,
+            head=[(point.x(), point.y()) for point in self.fishHead] if self.fishHead else None,
+            lines=lines, measurement=self.measurementBox.currentText(),
+            species=next((i for i, button in enumerate(self.spcButtons) if button.isChecked()), None),
+            gridSpecies=set(self.speciesInGrid), links=list(self.linkData)))
+
+    def undoLastMark(self):
+        """Undo one marking click, including a pending head or tail of a stereo fish."""
+        if (self.noLoad or not self.recordBtn.isChecked() or self.dataDB is None
+                or self.measureBtn.isChecked() or self.makeBoxes or not self.markUndoHistory):
+            return
+        before, after=self.markUndoHistory[-1]
+        scope=(self.activeProject, self.deployment, int(self.frameText()))
+        try:
+            if scope != after['scope'] or annotationundo.capture(self.dataDB.db, scope) != after['rows']:
+                # A separate edit must never be overwritten by an older click snapshot.
+                self.markUndoHistory.clear()
+                return
+            annotationundo.restore(self.dataDB.db, scope, before['rows'])
+            self.markUndoHistory.pop()
+            self.restoreMarkUndo(before['state'])
+        except Exception:
+            self.showError()
+
+    def restoreMarkUndo(self, state):
+        # Redraw annotations only: retain the images, zoom, grid and unsaved frame metadata.
+        views=(self.gvLeft, self.gvRight)
+        self.deSelect()
+        self.clearEpipolar()
+        for item, info in list(self.pointMarks.items()) + list(self.lineMarks.items()):
+            info[1].removeItem(item)
+        self.pointMarks={}
+        self.lineMarks={}
+        self.activeMark={view: None for view in views}
+        self.activeLine={view: None for view in views}
+        self.theOtherTarget=None
+        self.fishLines={}
+        self.pairPoints=[]
+        self.reloadData(annotationsOnly=True)
+        self.currentTarget=state['target']
+        self.fishTarget=state['fishTarget']
+        self.fishHead=[QPointF(x, y) for x, y in state['head']] if state['head'] else None
+        self.fishStep=state['step']
+        self.measurementBox.setCurrentText(state['measurement'])
+        self.speciesInGrid=set(state['gridSpecies'])
+        self.linkData=list(state['links'])
+        self.linkBtn.setChecked(bool(self.linkData))
+        self.spcInd=state['species']
+        for i, button in enumerate(self.spcButtons):
+            button.setChecked(i == self.spcInd)
+        for item, (target, view) in self.pointMarks.items():
+            if target == self.currentTarget:
+                self.activeMark[view]=item
+        self.pairedTarget=all(self.activeMark.values())
+        self.fishHeadMarks=[self.activeMark[view] for view in views]
+        for index, x, y in state['pair']:
+            view=views[index]
+            color=self.spcColors[self.spcInd]
+            marker=view.addMark(QPointF(x, y), style='o', color=color, size=1.0, thickness=1.0,
+                                alpha=255, selectThickness=self.selThickness, selectColor=self.selColor)
+            species=self.spcButtons[self.spcInd].text()[:self.guiSettings['LabelSpeciesParam']]
+            marker.addLabel(str(self.currentTarget)+' '+species, color=color, offset=self.textOffset,
+                            name='tnumber', size=self.guiSettings['LabelTextSize'])
+            if not self.labelCheck.isChecked():
+                marker.hideLabels(None)
+            self.pointMarks[marker]=[self.currentTarget, view]
+            self.theOtherTarget=marker
+            self.pairPoints.append([view, x, y])
+        for index, x1, y1, x2, y2 in state['lines']:
+            view=views[index]
+            line=view.addDimensionLine(QPointF(x1, y1), QPointF(x2, y2),
+                taillength=self.guiSettings['MeasureLineTailLength'], thickness=self.guiSettings['MeasureLineWidth'],
+                color=self.guiSettings['TargetLineColor'])
+            self.fishLines[view]=line
+            self.lineMarks[line]=[self.fishTarget, view, state['measurement']]
+        self.clearMeasureChip()
+        self.previousLineName=None
+        self.incrementCounters()
+        self.updateTimelineMarks()
+        self.measurementsDock.refresh()
+        if self.showDataCheck.isChecked():
+            self.datadlg.refreshView()
+        self.updateFishGuide()
+        self.updateEpipolar()
 
     def handleImageClick(self, imageObj, clickLoc, button, currentKbKey, item):
         # selection code
@@ -3568,6 +3674,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             
 
     def toggleRecord(self):
+        self.markUndoHistory.clear()
         if self.deployment==None:
             QMessageBox.warning(self, "ERROR", "Please load a deployment.")
             self.recordBtn.setChecked(False)
@@ -3893,7 +4000,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.showAnnotations()
         self.changeSelectionFromTable(frame, target)
 
-    def reloadData(self):
+    def reloadData(self, annotationsOnly=False):
         if not self.recordBtn.isChecked():
             return
         try:
@@ -4049,6 +4156,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     self.dataDB.dbExec("DELETE FROM targets WHERE frame_number="+self.frameText()+" AND target_number="+t+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 if targetToDelete:
                     self.updateTimelineMarks()
+                if annotationsOnly:
+                    return
                 # relod frame metadata
                 if self.settings['CollectMetadata'].lower()=='true' or self.settings['CollectMetadata'].lower()=='yes':
                     if 'ExclusiveRadioBox1' in self.metadataTypesDict:

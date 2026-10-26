@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'NewProjectDlg.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -74,6 +74,12 @@ class Ui_newProjectDlg(object):
         self.speciesBox.setObjectName(u"speciesBox")
 
         self.verticalLayout_3.addWidget(self.speciesBox)
+
+        self.createSpeciesCollectionBtn = QPushButton(newProjectDlg)
+        self.createSpeciesCollectionBtn.setObjectName(u"createSpeciesCollectionBtn")
+        self.createSpeciesCollectionBtn.setAutoDefault(False)
+
+        self.verticalLayout_3.addWidget(self.createSpeciesCollectionBtn)
 
         self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
@@ -165,6 +171,7 @@ class Ui_newProjectDlg(object):
         self.label.setText(QCoreApplication.translate("newProjectDlg", u"Project Name", None))
         self.label_2.setText(QCoreApplication.translate("newProjectDlg", u"Description", None))
         self.label_3.setText(QCoreApplication.translate("newProjectDlg", u"Species Collection", None))
+        self.createSpeciesCollectionBtn.setText(QCoreApplication.translate("newProjectDlg", u"Create Species Collection", None))
         self.label_4.setText(QCoreApplication.translate("newProjectDlg", u"Metadata Group", None))
         self.label_6.setText(QCoreApplication.translate("newProjectDlg", u"Active", None))
         self.groupBox.setTitle("")

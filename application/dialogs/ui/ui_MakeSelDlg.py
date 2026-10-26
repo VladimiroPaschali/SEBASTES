@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'MakeSelDlg.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -39,6 +39,12 @@ class Ui_makeSelDlg(object):
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(-1, -1, -1, 0)
+        self.createProfileBtn = QPushButton(makeSelDlg)
+        self.createProfileBtn.setObjectName(u"createProfileBtn")
+        self.createProfileBtn.setAutoDefault(False)
+
+        self.horizontalLayout.addWidget(self.createProfileBtn)
+
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
@@ -65,6 +71,7 @@ class Ui_makeSelDlg(object):
     def retranslateUi(self, makeSelDlg):
         makeSelDlg.setWindowTitle(QCoreApplication.translate("makeSelDlg", u"Make a selection", None))
         self.label.setText(QCoreApplication.translate("makeSelDlg", u"Profiles", None))
+        self.createProfileBtn.setText(QCoreApplication.translate("makeSelDlg", u"Create Profile", None))
         self.cancelBtn.setText(QCoreApplication.translate("makeSelDlg", u"Cancel", None))
         self.selectBtn.setText(QCoreApplication.translate("makeSelDlg", u"Select", None))
     # retranslateUi

@@ -12,6 +12,8 @@ class MakeSelDlg(QDialog, ui_MakeSelDlg.Ui_makeSelDlg):
         
         self.selectBtn.clicked.connect(self.exit)
         self.cancelBtn.clicked.connect(self.cancel)
+        self.createProfileBtn.clicked.connect(self.createProfile)
+        self.createProfileBtn.setVisible(mode == 'profile')
         self.mode=mode
         self.action=action
         self.value=None
@@ -28,12 +30,26 @@ class MakeSelDlg(QDialog, ui_MakeSelDlg.Ui_makeSelDlg):
         self.appDB=parent.appDB
         self.loadView()
         if mode=='profile':
+            self.setWindowTitle('Select Profile')
             self.label.setText('Select Profile')
         elif mode=='species':
             self.label.setText('Select Species Collection')
         elif mode=='metadata':
             self.label.setText('Select Metadata Group')
             
+    def createProfile(self):
+        from dialogs.newprofiledlg import NewProfileDlg
+        dlg = NewProfileDlg(self)
+        if dlg.exec() == QDialog.Accepted:
+            self.value = None
+            self.loadView()
+            while self.viewModel.canFetchMore():
+                self.viewModel.fetchMore()
+            for row in range(self.viewModel.rowCount()):
+                if self.viewModel.data(self.viewModel.index(row, 0)) == dlg.profile:
+                    self.dataView.selectRow(row)
+                    break
+
     def loadView(self):
         if self.mode=='profile':
             if self.action=='imp_exp':

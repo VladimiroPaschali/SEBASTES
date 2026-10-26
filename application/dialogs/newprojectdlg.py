@@ -12,7 +12,15 @@ class NewProjectDlg(QDialog, ui_NewProjectDlg.Ui_newProjectDlg):
         self.appDB=parent.appDB
         self.okBtn.clicked.connect(self.exitCheck)
         self.cancelBtn.clicked.connect(self.cancel)
+        self.createSpeciesCollectionBtn.clicked.connect(self.createSpeciesCollection)
         self.populateBoxWidgets()
+
+    def createSpeciesCollection(self):
+        from dialogs.newspeciescollectiondlg import NewSpeciesCollectionDlg
+        dlg = NewSpeciesCollectionDlg(self)
+        if dlg.exec() == QDialog.Accepted:
+            self.speciesBox.addItem(dlg.speciesCollection)
+            self.speciesBox.setCurrentText(dlg.speciesCollection)
         
     def populateBoxWidgets(self):
         query=self.appDB.dbQuery("SELECT SPECIES_COLLECTION FROM SPECIES_COLLECTIONS")

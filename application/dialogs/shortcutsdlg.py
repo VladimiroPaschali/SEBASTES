@@ -49,7 +49,8 @@ def shortcutGroups(window):
             (shortcutText(window.measureBtn), 'Measure Target: draw the length of the selected target in both images'),
             ('Drag', 'With Measure Target: draw the length line in one image, then in the other'),
             ('A', 'Auto Match on or off: the matching point of the other image is found for you'),
-            ('Z', 'With Auto Match: undo the last target'),
+            ('Ctrl+Z', 'Undo the last marking click in the current frame, including a pending head or tail'),
+            ('Z', 'With Auto Match: undo the last marking click'),
             ('Esc', 'Cancel the pair or the measurement being marked and reload the frame'),
         ]),
         ('Editing (while recording)', [

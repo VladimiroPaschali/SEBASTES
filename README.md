@@ -68,6 +68,8 @@ python application\MainWindow.py
 
 `MainWindow.py` finds its own files, so it also works from another folder if you give its full path.
 
+On Windows, after completing installation, double-click `Launch_SEBASTES.bat` in the repository folder. It uses `.venv\Scripts\pythonw.exe` to open the application without keeping a terminal window open. The batch file works even when launched from another folder; a console may appear briefly while it starts.
+
 On Windows there are two other ways to start it:
 - **With an error log.** From inside `application\`, run `python SEBASTES.py`. It starts SEBASTES and writes its console output to `logs\`.
 - **From a desktop shortcut, without a terminal.** Create a shortcut whose target is the environment's `pythonw.exe` followed by `MainWindow.py`, for example:
@@ -112,6 +114,8 @@ SEBASTES remembers the size and position of its window and of its panels (Specie
 
 A profile tells SEBASTES how a deployment folder is organized. In the same dialog, go to the **Profiles** tab.
 
+When opening a deployment, you can also click **Create Profile** in the **Select Profile** dialog. It opens the same profile form. After **Save changes**, the new profile is selected in the list; click **Select** to continue loading the deployment. **Cancel** discards the unsaved profile.
+
 1. Click **Create New Profile**.
 2. Fill in the settings (see the table below).
 3. Click **Save changes**.
@@ -139,6 +143,8 @@ Frame metadata are extra fields recorded per frame, such as habitat type. Groups
 ### 4. Project
 
 Open **Settings > Create New Project...**, or click **Create Project** in the project list that appears when you load a deployment. Give the project a name and pick its species collection and metadata group.
+
+In the **Create a new project** dialog, click **Create Species Collection** to create a collection without leaving project setup. Enter a collection name and description, use **Insert**, **Edit** and **Delete** to set up its species (up to 30), then click **Save changes**. Each species has a name, description, button color and optional sort order, using the same species editor as **Settings > Profiles...**. The saved collection is selected automatically in the project. **Cancel** discards the unsaved collection and its species.
 
 ## Preparing a deployment
 
@@ -207,6 +213,8 @@ SEBASTES then saves the length as the target's line (the measurement chosen in t
 After each measurement the status bar shows a short chip with how good it is, for example `Fish A · 31.2 cm · e 0.4 px`: the name and length and the reprojection error `e`. A point target shows its range and `e`. When `epi`, how far the clicks are from the epipolar line of their match (the worse end of a line), is 2 px or more, it is added to the chip; the tooltip always gives the range from the left camera (for a fish, of the middle of its line) and `epi`. The chip is green when `e` is below 2 px, amber below 5 px and red above that. A large `e` on every fish means the calibration does not match the videos (see Stereo calibration); a large `epi` on one fish means its two clicks are not the same point. Hover over the chip for this explanation. It appears with the first measurement of a deployment.
 
 **Help > Keyboard Shortcuts** (**F1**) lists all the keys and mouse gestures. While recording, the keys **1** to **9** select the species buttons of the tab on screen (the tooltip of a button says its key), **R** starts and stops recording, **M** starts Measure Target and **L** shows and hides the labels.
+
+While recording, **Ctrl+Z** undoes the last marking click in the current frame, for both plain clicks and Shift+clicks. In guided stereo marking it goes back one head or tail click, so you can correct that point and continue. With Auto Match, the automatically matched point is undone together with the click. Up to 100 marking clicks can be undone; changing frames or leaving Record clears this history. Text fields retain their normal text undo. **Z** also undoes the last marking click when Auto Match is enabled.
 
 The target label is drawn beyond the head and the length label beyond the tail (or above/below them when there is no room), so they don't overlap. They appear when **Show Labels** is ticked. Lengths and names are saved in the `lines` table (`NAME` column, also in `*_lines.csv`); for the units, see Stereo calibration.
 
