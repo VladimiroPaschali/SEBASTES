@@ -178,6 +178,10 @@ class QViewerBase(QGraphicsView):
         self.lastClickPoint = QPoint(0,0)
         self.currentKbKey = None
         self.panning = False
+        self.panKeysDown = set()
+        self.panDragging = False
+        self.suppressPanRelease = False
+        self.__pointerLeftWidget = False
         self.isZooming = False
         self.__zooming=False
         self.dimensionLine = None
@@ -193,7 +197,6 @@ class QViewerBase(QGraphicsView):
         self.sceneItems = []
         self.stickyScale = (1.0,1.0)
         self.dimmed = False
-        self.highlightColor = None
 
         #  enable mouse tracking
         self.setMouseTracking(True)
@@ -1040,13 +1043,43 @@ class QViewerBase(QGraphicsView):
         self.isZooming = False
 
 
+    def updatePanCursor(self):
+        if self.panDragging:
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        elif self.panning:
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor if self.__pointerLeftWidget else self.defaultCursor)
+
+    def setPanKeyDown(self, key, pressed):
+        """Allow the host application to hold an additional temporary pan key."""
+        if pressed:
+            self.panKeysDown.add(key)
+        else:
+            self.panKeysDown.discard(key)
+        self.panning = bool(self.panKeysDown)
+        self.updatePanCursor()
+
+    def cancelPan(self):
+        self.suppressPanRelease = self.suppressPanRelease or self.panDragging
+        self.panDragging = False
+        self.panKeysDown.clear()
+        self.panning = False
+        self.leftBtnClicked = False
+        self.lastPanPoint = QPoint()
+        self.updatePanCursor()
+
+    def focusOutEvent(self, ev):
+        self.cancelPan()
+        super().focusOutEvent(ev)
+
     def enterEvent(self, ev):
         """
         Change the cursor when the mouse enters the widget
         """
         self.setFocus(Qt.FocusReason.MouseFocusReason)
         self.__pointerLeftWidget = False
-        self.setCursor(self.defaultCursor)
+        self.updatePanCursor()
         QGraphicsView.enterEvent(self, ev)
 
 
@@ -1054,7 +1087,7 @@ class QViewerBase(QGraphicsView):
         """
         Change the cursor when the mouse leaves the widget
         """
-        if (self.panning):
+        if self.panning or self.panDragging:
             #  don't immediately change pointer if we're panning
             self.__pointerLeftWidget = True
         else:
@@ -1073,11 +1106,17 @@ class QViewerBase(QGraphicsView):
         #  handle the built mouse events first
 
         #  panning...
-        if self.panning and (ev.button() == Qt.MouseButton.LeftButton):
+        if (self.panning or self.panDragging or self.suppressPanRelease) and (ev.button() == Qt.MouseButton.LeftButton):
             #  we're done panning
             self.leftBtnClicked = False
-            self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self.panDragging = False
+            self.suppressPanRelease = False
+            self.updatePanCursor()
             self.lastPanPoint = QPoint()
+            ev.accept()
+
+        elif self.panning:
+            ev.accept()
 
         #  "auto" rubber banding...
         elif self.rubberBandKey and self.rubberBanding:
@@ -1168,15 +1207,18 @@ class QViewerBase(QGraphicsView):
         #  get the click location in image coordinates
         clickLocation = self.mapToScene(ev.pos())
         self.lastClickPoint = ev.pos()
+        self.suppressPanRelease = False
 
         #  handle the built mouse events first
 
         #  panning...
-        if self.panning and (ev.button() == Qt.MouseButton.LeftButton):
-            #  we're panning
-            self.leftBtnClicked = True
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            self.lastPanPoint = ev.pos()
+        if self.panning or self.panDragging:
+            if ev.button() == Qt.MouseButton.LeftButton:
+                self.leftBtnClicked = True
+                self.panDragging = True
+                self.updatePanCursor()
+                self.lastPanPoint = ev.pos()
+            ev.accept()
 
         #  rubber banding...
         elif self.rubberBandKey and (self.currentKbKey == self.rubberBandKey) and (ev.button() == Qt.MouseButton.LeftButton):
@@ -1234,6 +1276,15 @@ class QViewerBase(QGraphicsView):
 
     def mouseMoveEvent(self, ev):
 
+        # A pan drag owns the gesture through mouse-up, even if its key is released first.
+        if self.panning or self.panDragging or self.suppressPanRelease:
+            if self.panDragging and not self.lastPanPoint.isNull():
+                delta = self.mapToScene(self.lastPanPoint) - self.mapToScene(ev.pos())
+                self.lastPanPoint = ev.pos()
+                self.setCenterPoint(self.centerPoint + delta)
+            ev.accept()
+            return
+
         if self.rubberBanding:
 
             #  we're rubberbanding, update the rubberband object
@@ -1277,16 +1328,6 @@ class QViewerBase(QGraphicsView):
 
             #  update the end-point
             self.dimensionLine.setP2(p2)
-
-        elif self.panning:
-            #  we're panning - track the movement and set the center point
-            if not self.lastPanPoint.isNull():
-                #print("lastPan:"+str(self.mapToScene(self.lastPanPoint)) + "  thisPan:" +
-                #        str(self.mapToScene(ev.pos())))
-                delta = self.mapToScene(self.lastPanPoint) - self.mapToScene(ev.pos())
-                #print("delta:"+str(delta))
-                self.lastPanPoint = ev.pos()
-                self.setCenterPoint(self.centerPoint + delta)
 
         else:
             #  if we're allowing the dragging of selected marks - move them
@@ -1384,13 +1425,7 @@ class QViewerBase(QGraphicsView):
         self.currentKbKey = ev.key()
 
         if (ev.key() == self.panKey):
-            #  enable Pan mode
-            self.panning = True
-            #  set the cursor to the hand to indicate pan/zoom mode
-            if self.leftBtnClicked:
-                self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            else:
-                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self.setPanKeyDown(ev.key(), True)
         elif (ev.key() == self.selectAddKey):
             #  set the cursor to the arrow with "+"
             self.setCursor(Qt.CursorShape.DragCopyCursor)
@@ -1408,13 +1443,8 @@ class QViewerBase(QGraphicsView):
         self.currentKbKey = None
 
         if (ev.key() == self.panKey):
-            #  disable Pan/Zoom mode
-            self.panning = False
-            if self.__pointerLeftWidget:
-                #  we've left the widget - reset the cursor to the standard arrow
-                self.setCursor(Qt.CursorShape.ArrowCursor)
-            else:
-                self.setCursor(self.defaultCursor)
+            if not ev.isAutoRepeat():
+                self.setPanKeyDown(ev.key(), False)
         elif (ev.key() == self.selectAddKey):
             #  disable selection add mode
             if self.__pointerLeftWidget:
@@ -1511,7 +1541,7 @@ class QViewerBase(QGraphicsView):
         viewport.
         """
 
-        if not (self.panning or self.__zooming or self.isSettingCtrPt):
+        if not (self.panning or self.panDragging or self.__zooming or self.isSettingCtrPt):
             #  move the current center point if the user manually scrolls
             ptBeforeScale = self.mapToScene(self.centerPoint.toPoint())
             QGraphicsView.scrollContentsBy(self, x, y)
@@ -1596,32 +1626,6 @@ class QViewerBase(QGraphicsView):
         if dimmed != self.dimmed:
             self.dimmed = dimmed
             self.viewport().update()
-
-
-    def setHighlighted(self, color):
-        """
-        setHighlighted draws a 2 pixel border in color (a QColor) just inside the view, for example to show
-        that this view is the one waiting for the user's click. None removes the border.
-        """
-        if color != self.highlightColor:
-            self.highlightColor = color
-            self.viewport().update()
-
-
-    def paintEvent(self, ev):
-        """
-        paintEvent draws the view, then its highlight border. The border is painted in viewport coordinates and
-        takes no room: the image keeps its size and place.
-        """
-        QGraphicsView.paintEvent(self, ev)
-        if self.highlightColor is not None:
-            painter = QPainter(self.viewport())
-            pen = QPen(self.highlightColor)
-            pen.setWidth(2)
-            painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRect(QRectF(1, 1, self.viewport().width() - 2, self.viewport().height() - 2))
-            painter.end()
 
 
     def drawForeground(self, painter, rect):

@@ -26,7 +26,7 @@ def shortcutGroups(window):
         ('Navigation', [
             ('Left / Right', 'Previous / next sampled frame (the step is the Every box)'),
             ('Ctrl+Left / Right', 'Previous / next frame'),
-            (shortcutText(window.playKey), 'Play or pause (not while recording)'),
+            (shortcutText(window.playKey), 'Play or pause (while recording, Space over an image is used for panning)'),
             (shortcutText(window.actionLoad), 'Open a deployment'),
             ('Enter', 'In the Frame box: go to the frame typed there'),
             ('Click', 'Timeline: go to that frame. Measurements panel: go to the frame of a row and show its fish'),
@@ -34,7 +34,7 @@ def shortcutGroups(window):
         ('View', [
             ('Wheel', 'Zoom in or out around the selected target, in both images'),
             ('Ctrl+Wheel', 'Zoom in or out around the pointer, in the image under it'),
-            ('Alt+Drag', 'Move a zoomed image'),
+            ('Space+Drag', 'While recording: hold Space to pan a zoomed image without marking fish'),
             (shortcutText(window.labelCheck), 'Show or hide the labels'),
             (shortcutText(window.actionShortcuts), 'This window'),
             (shortcutText(window.actionExit), 'Exit SEBASTES'),
@@ -56,7 +56,7 @@ def shortcutGroups(window):
         ('Editing (while recording)', [
             ('Right-click', 'Select a mark and its pair in the other image'),
             ('Delete', 'Delete the selected mark and its data'),
-            ('Home', 'Link the selected target to a target of the next frame'),
+            ('Home', 'Link the same fish across any two frames. Choose a fish in Measurements or on the image. Esc cancels.'),
             ('Double-click', 'Species button: choose another species for the button'),
             ('Double-click / F2', 'Measurements panel: rename the measurement'),
         ]),

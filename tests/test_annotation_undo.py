@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import test_project_setup as setup
 import numpy as np
-from PySide6.QtCore import QPointF, QSettings, Qt
+from PySide6.QtCore import QPoint, QPointF, QSettings, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtCore import QEvent
 from PySide6.QtTest import QTest
@@ -96,6 +96,7 @@ class AnnotationUndoTests(unittest.TestCase):
         window.measurementsDock.setDeployment(window.dataDB, window.deployment)
 
     def tearDown(self):
+        self.fixture.app.removeEventFilter(self.window)
         self.window.noLoad = True
         self.window.dataDB.dbClose()
         self.window.dataDB = None
@@ -253,6 +254,110 @@ class AnnotationUndoTests(unittest.TestCase):
         self.errors.clear()
         self.undoKey()
         self.assertEqual(self.count('targets'), 1)
+
+    def preparePan(self, right=False):
+        self.window.showViews()
+        self.window.show()
+        self.window.activateWindow()
+        view = self.window.gvRight if right else self.window.gvLeft
+        view.setFocus()
+        self.fixture.app.processEvents()
+        view.zoomToPoint(QPointF(150, 100), 12)
+        return view, view.viewport().rect().center()
+
+    def test_space_drag_pans_without_creating_marks_or_undo_events(self):
+        for right in (False, True):
+            view, start = self.preparePan(right)
+            initial = QPointF(view.centerPoint)
+            QTest.keyPress(view, Qt.Key_Space)
+            self.assertTrue(self.window.spacePanActive)
+            self.assertEqual(view.cursor().shape(), Qt.OpenHandCursor)
+            QTest.mousePress(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+            self.assertEqual(view.cursor().shape(), Qt.ClosedHandCursor)
+            QTest.mouseMove(view.viewport(), start + QPoint(35, 20))
+            self.assertNotEqual(view.centerPoint, initial)
+            QTest.mouseRelease(view.viewport(), Qt.LeftButton, Qt.NoModifier, start + QPoint(35, 20))
+            self.assertEqual(view.cursor().shape(), Qt.OpenHandCursor)
+            QTest.keyRelease(view, Qt.Key_Space)
+            self.assertFalse(view.panning)
+            self.assertEqual(view.cursor().shape(), view.defaultCursor)
+        self.assertEqual(self.count('targets'), 0)
+        self.assertEqual(self.window.markUndoHistory, [])
+
+    def test_releasing_space_before_mouse_keeps_drag_safe_then_resumes_marking(self):
+        view, start = self.preparePan()
+        QTest.keyPress(view, Qt.Key_Space)
+        QTest.mousePress(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+        QTest.keyRelease(view, Qt.Key_Space)
+        self.assertTrue(view.panDragging)
+        self.assertEqual(view.cursor().shape(), Qt.ClosedHandCursor)
+        QTest.mouseMove(view.viewport(), start + QPoint(30, 10))
+        QTest.mouseRelease(view.viewport(), Qt.LeftButton, Qt.NoModifier, start + QPoint(30, 10))
+        self.assertFalse(view.panDragging)
+        self.assertEqual(self.count('targets'), 0)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+        self.assertEqual(self.count('targets'), 1)
+
+    def test_pan_preserves_pending_fish_and_shift_click_history(self):
+        self.click(shift=True)
+        view, start = self.preparePan()
+        QTest.keyPress(view, Qt.Key_Space)
+        QTest.mousePress(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+        QTest.mouseMove(view.viewport(), start + QPoint(20, 10))
+        QTest.mouseRelease(view.viewport(), Qt.LeftButton, Qt.NoModifier, start + QPoint(20, 10))
+        QTest.keyRelease(view, Qt.Key_Space)
+        self.assertEqual(self.window.fishStep, 1)
+        self.assertEqual(len(self.window.pairPoints), 1)
+        self.assertEqual(len(self.window.markUndoHistory), 1)
+        self.assertEqual(self.count('targets'), 0)
+
+    def test_space_in_text_field_keeps_normal_typing(self):
+        self.preparePan()
+        self.window.frameBox.setFocus()
+        self.window.frameBox.setText('')
+        QTest.keyClicks(self.window.frameBox, 'a b')
+        self.assertEqual(self.window.frameBox.text(), 'a b')
+        self.assertFalse(self.window.spacePanActive)
+        self.assertFalse(self.window.gvLeft.panning)
+
+    def test_space_pan_cleans_up_on_focus_loss_and_window_deactivation(self):
+        view, start = self.preparePan()
+        QTest.keyPress(view, Qt.Key_Space)
+        self.window.frameBox.setFocus()
+        self.fixture.app.processEvents()
+        self.assertFalse(self.window.spacePanActive)
+        self.assertFalse(view.panning)
+        QTest.keyRelease(self.window.frameBox, Qt.Key_Space)
+        view.setFocus()
+        QTest.keyPress(view, Qt.Key_Space)
+        QTest.mousePress(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+        self.fixture.app.sendEvent(self.window, QEvent(QEvent.WindowDeactivate))
+        self.assertFalse(self.window.spacePanActive)
+        self.assertFalse(view.panDragging)
+        QTest.mouseRelease(view.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+        QTest.keyRelease(view, Qt.Key_Space)
+        self.assertEqual(self.count('targets'), 0)
+
+    def test_space_keeps_play_shortcut_outside_record(self):
+        view, _ = self.preparePan()
+        self.window.recordBtn.setChecked(False)
+        self.window.playBtn.setEnabled(True)
+        activations = []
+        self.window.playKey.activated.disconnect()
+        self.window.playKey.activated.connect(lambda: activations.append(True))
+        self.fixture.app.processEvents()
+        QTest.keyClick(view, Qt.Key_Space)
+        self.assertEqual(activations, [True])
+        self.assertFalse(view.panning)
+
+    def test_alt_does_not_enable_panning(self):
+        view, _ = self.preparePan()
+        QTest.keyPress(view, Qt.Key_Alt)
+        self.assertFalse(view.panning)
+        self.assertNotEqual(view.cursor().shape(), Qt.OpenHandCursor)
+        QTest.keyRelease(view, Qt.Key_Alt)
+        self.assertFalse(view.panning)
+        self.assertEqual(self.count('targets'), 0)
 
 
 if __name__ == '__main__':

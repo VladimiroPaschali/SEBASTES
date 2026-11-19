@@ -1241,7 +1241,7 @@ class Ui_SEBASTES(object):
         self.linkBtn.setText(QCoreApplication.translate("SEBASTES", u"Link Target	Home", None))
         self.linkBtn.setIconText(QCoreApplication.translate("SEBASTES", u"Link", None))
 #if QT_CONFIG(tooltip)
-        self.linkBtn.setToolTip(QCoreApplication.translate("SEBASTES", u"Link the selected target to a target in the next frame (Home)", None))
+        self.linkBtn.setToolTip(QCoreApplication.translate("SEBASTES", u"Link the same fish across frames (Home). Esc cancels.", None))
 #endif // QT_CONFIG(tooltip)
         self.delLinkBtn.setText(QCoreApplication.translate("SEBASTES", u"Delete Link", None))
 #if QT_CONFIG(tooltip)

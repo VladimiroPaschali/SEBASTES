@@ -1,18 +1,8 @@
 """Typed snapshots of the current frame's annotations for click-by-click undo."""
-from PySide6 import QtSql
+from dbConnection import execute
 
 TABLES = ('targets', 'points', 'lines')
 WHERE = 'PROJECT = ? AND DEPLOYMENT_ID = ? AND FRAME_NUMBER = ?'
-
-
-def execute(db, statement, values=()):
-    query = QtSql.QSqlQuery(db)
-    query.prepare(statement)
-    for value in values:
-        query.addBindValue(value)
-    if not query.exec():
-        raise RuntimeError(query.lastError().text())
-    return query
 
 
 def capture(db, scope):

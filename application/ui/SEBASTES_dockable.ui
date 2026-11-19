@@ -2259,7 +2259,7 @@ frame</string>
     <string>Link</string>
    </property>
    <property name="toolTip">
-    <string>Link the selected target to a target in the next frame (Home)</string>
+    <string>Link the same fish across frames (Home). Esc cancels.</string>
    </property>
   </action>
   <action name="delLinkBtn">

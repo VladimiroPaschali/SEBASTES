@@ -68,7 +68,7 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
         self.frameModel.setQuery("SELECT FRAME_NUMBER, FRAME_TIME, COMMENT FROM frames WHERE deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number", self.db)
         self.frameTable.reset()
         self.frameTable.scrollToBottom()
-        self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
+        self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK_FRAME,TARGET_LINK,COMMENT FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
         self.targetTable.reset()
         if scroll:
             self.targetTable.scrollToBottom()
@@ -82,7 +82,7 @@ class DataViewDlg(QDialog, ui_DataviewDlg.Ui_dataviewDlg):
                 speciesList.append(query.value(0))
             dlg.setList(speciesList)
             if dlg.exec_():
-                self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK,COMMENT FROM targets WHERE species_group='"+sqlQuote(dlg.listWidget.currentItem().text())+"' AND deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
+                self.targetModel.setQuery("SELECT FRAME_NUMBER,TARGET_NUMBER,SPECIES_GROUP,TARGET_LINK_FRAME,TARGET_LINK,COMMENT FROM targets WHERE species_group='"+sqlQuote(dlg.listWidget.currentItem().text())+"' AND deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY frame_number, target_number", self.db)
                 self.targetTable.reset()
         else:
             self.refreshView()

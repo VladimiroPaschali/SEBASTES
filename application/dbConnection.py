@@ -37,6 +37,16 @@ import logging
 from PySide6 import QtSql
 
 
+def execute(db, statement, values=()):
+    query = QtSql.QSqlQuery(db)
+    query.prepare(statement)
+    for value in values:
+        query.addBindValue(value)
+    if not query.exec():
+        raise RuntimeError(query.lastError().text())
+    return query
+
+
 def sqlQuote(text):
     '''
     sqlQuote doubles the single quotes of a string that is put between single quotes in a SQL

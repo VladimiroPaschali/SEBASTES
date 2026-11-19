@@ -22,6 +22,7 @@ import bisect
 import random
 import sqlite3
 import annotationundo
+import targetlinks
 from datetime import datetime,  timezone
 from dialogs import speciesgroupdlg, closeupdlg, dataviewdlg, commentdlg, editspeciesdlg, framecommentdlg,  makeseldlg,  profilesetupdlg,  guisettingdlg,  selectprojectdlg, annotatorDlg, viewapplicationdbdlg,  directeditDBdlg, shortcutsdlg
 from exif import Image
@@ -222,6 +223,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.copyBtn.triggered.connect(self.copyImg)
         self.playBtn.clicked.connect(self.play)
         self.linkBtn.triggered.connect(self.toggleLink)
+        self.linkBtn.setShortcut(QKeySequence(Qt.Key_Home))
         self.delLinkBtn.triggered.connect(self.deleteLink)
         self.targetCommentBtn.triggered.connect(self.getTargetComment)
         self.frameCommentBtn.triggered.connect(self.getFrameComment)
@@ -252,6 +254,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.measurementsDock)
         self.measurementsDock.setFeatures(dockFeatures)
         self.measurementsDock.goToTarget.connect(self.showMeasurement)
+        self.measurementsDock.linkRequested.connect(self.linkFromTable)
+        self.measurementsDock.fishRenamed.connect(self.refreshFishNames)
+        self.measurementsDock.deleteRequested.connect(self.deleteMeasurements)
+        self.recordBtn.toggled.connect(self.measurementsDock.setDeletionEnabled)
         # the ticks of the timeline follow the measurements
         self.measurementsDock.refreshed.connect(self.updateTimelineMarks)
         self.measurementsDock.hide()
@@ -278,7 +284,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             btn.toggled.connect(self.updateFishGuide)
         for btn in [self.recordBtn, self.stereoRadio]:
             btn.toggled.connect(self.updateEpipolar)
-        # while recording nothing plays: the speed gives way to the sample step in a narrow navigation bar
+        # while recording the sample step takes priority over speed in a narrow navigation bar
         self.recordBtn.toggled.connect(self.fitNavBar)
 
         # grid cehckbox
@@ -296,6 +302,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.actionCreate_New_Project.triggered.connect(self.createNewProject)
         self.actionviewApplicationDB.triggered.connect(self.viewApplicationDB)
         self.actionedit_DB_tables.triggered.connect(self.directEditDBTables)
+        self.actionAnnotator=QAction('Annotator...', self)
+        self.actionAnnotator.triggered.connect(self.setAnnotator)
+        self.menuSettings.addAction(self.actionAnnotator)
+        self.recordBtn.toggled.connect(lambda recording: self.actionAnnotator.setEnabled(not recording))
         self.playSpeedSlider.valueChanged.connect(self.speedSet)
         # the fps box and the slider follow each other
         self.playSpeedSlider.valueChanged.connect(self.playSpeedBox.setValue)
@@ -319,10 +329,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             obj.autoWheelZoom=False
             obj.doSelections=False
             obj.selectAddKey=None
-            #obj.panKey = None
+            obj.panKey=None
             obj.rubberBandKey=None
             obj.image.keepEnhanced=True
-            # no scroll bars: Alt+drag pans a zoomed image and zooming centres on the mark, so the empty tracks only take room
+            # Space pans while recording; hidden scroll bars leave more room for the images.
             obj.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             obj.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # the welcome page opens a deployment, from its button or from the list of the last ones
@@ -331,6 +341,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         #  restore the application state
         self.appSettings = QSettings('afsc.noaa.gov', 'Sebastes')
+        self.annotator=str(self.appSettings.value('annotator', '') or '').strip() or None
         # View > Epipolar Hints is remembered
         self.epipolarCheck.setChecked(strtobool(self.appSettings.value('epipolarhints', 'true')))
         self.epipolarCheck.toggled.connect(self.epipolarToggled)
@@ -441,8 +452,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.updateDeploymentLabel()
         self.updateMeasureWidgets()
         # the second row of the navigation bar gives up controls when the window is narrow: see fitNavBar
-        self.navBar.installEventFilter(self)
         self.showWelcome()
+        self.spacePanActive=False
+        self.recordBtn.toggled.connect(lambda checked: self.stopSpacePan() if not checked else None)
+        # Observe releases and focus changes even if the pointer moves to the other image or a control.
+        QApplication.instance().installEventFilter(self)
 
     ######################0. WINDOW LAYOUT################################
 
@@ -534,11 +548,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         addTool(self.editSpeciesBtn)
         # the selected target: "Target: 3"
         self.targetBox=QWidget(bar)
-        self.targetBox.setToolTip('The selected target')
+        self.targetBox.setToolTip('Frame and target of the linked observation')
         row=QHBoxLayout(self.targetBox)
         row.setContentsMargins(8, 0, 8, 0)
         row.setSpacing(4)
-        self.label_4=QLabel('Target:', self.targetBox)
+        self.label_4=QLabel('Link:', self.targetBox)
         self.targetLinkLabel=QLabel('', self.targetBox)
         self.targetLinkLabel.setMinimumWidth(24)
         boldFont=self.targetLinkLabel.font()
@@ -653,8 +667,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.playBtn.setStyleSheet(theme.playButtonStyle())
         colors=theme.colors()
         self.imageSlider.setMarkColors(colors['warning'], colors['text'], colors['surface'])
-        # the border of the image that waits for a click and the epipolar curves are in the accent colour
-        self.showActiveImageCue()
+        # The epipolar curves follow the theme's accent colour.
         self.updateEpipolar()
         self.updatePlayButton()
         self.updateStatusMode()
@@ -694,6 +707,34 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             button.setEnabled(enabled)
 
     def eventFilter(self, obj, event):
+        eventType=event.type()
+        views=(self.gvLeft, self.gvRight)
+        if eventType in (QEvent.Type.ShortcutOverride, QEvent.Type.KeyPress, QEvent.Type.KeyRelease):
+            if event.key() == Qt.Key_Space:
+                imageFocus=isinstance(obj, QWidget) and any(view is obj or view.isAncestorOf(obj) for view in views)
+                if eventType == QEvent.Type.KeyRelease and getattr(self, 'spacePanActive', False):
+                    if not event.isAutoRepeat():
+                        self.stopSpacePan()
+                    event.accept()
+                    return True
+                if (imageFocus and not self.noLoad and self.recordBtn.isChecked()
+                        and not event.modifiers() & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)):
+                    if eventType == QEvent.Type.KeyPress and not event.isAutoRepeat():
+                        self.spacePanActive=True
+                        for view in views:
+                            view.setPanKeyDown(Qt.Key_Space, True)
+                    event.accept()
+                    return True
+        elif eventType == QEvent.Type.FocusIn and getattr(self, 'spacePanActive', False):
+            if isinstance(obj, QWidget) and any(view is obj or view.isAncestorOf(obj) for view in views):
+                for view in views:
+                    view.setPanKeyDown(Qt.Key_Space, True)
+            else:
+                self.stopSpacePan()
+        elif obj is self and eventType == QEvent.Type.WindowDeactivate:
+            self.stopSpacePan()
+            for view in views:
+                view.cancelPan()
         # the sample and speed controls give way when the navigation bar gets narrow
         if obj is self.navBar and event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
             self.fitNavBar()
@@ -701,12 +742,17 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.playKey.setEnabled(self.playBtn.isEnabled())
         return QMainWindow.eventFilter(self, obj, event)
 
+    def stopSpacePan(self):
+        self.spacePanActive=False
+        for view in (self.gvLeft, self.gvRight):
+            view.setPanKeyDown(Qt.Key_Space, False)
+
     def fitNavBar(self):
         '''
         fitNavBar makes the second row of the navigation bar fit its width. When it is too narrow it gives up controls,
         the least needed first, until the rest fits: the speed slider (the speed stays in its box), the time of the
-        frame, the offset of the sample step and then the sample step, or the speed while recording (nothing plays
-        then, and the sample step is what the arrow keys use). The controls come back when the bar is wide enough
+        frame, the offset of the sample step and then the sample step, or the speed while recording (the sample
+        step is what the arrow keys use). The controls come back when the bar is wide enough
         again. Their minimum width is 1 in the layout, so the window can be made narrow.
         '''
         margins=self.navLayout.contentsMargins()
@@ -917,15 +963,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if item is not None:
                 self.epipolarItems[otherObj].append(item)
         otherObj.viewport().update()
-
-    def showActiveImageCue(self):
-        '''
-        showActiveImageCue puts a border in the accent colour around the image the guided fish marking waits for. The other
-        image is dimmed (updateFishGuide).
-        '''
-        color=QColor(theme.colors()['accentSoft'])
-        for imageObj in [self.gvLeft, self.gvRight]:
-            imageObj.setHighlighted(color if self.fishGuideActive() and self.fishImage() is imageObj else None)
 
     def epipolarMismatch(self, pairs):
         '''
@@ -1452,6 +1489,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         closeDeployment saves and closes the deployment that is open, if any.
         '''
         self.markUndoHistory.clear()
+        self.stopSpacePan()
         self.stopPlay()
         self.clearMeasureChip()
         if self.dataDB is not None:
@@ -1873,6 +1911,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                     self.playSpeedSlider.setValue(int(round(fps)))
 
             self.noLoad=False
+            targetlinks.migrate(self.dataDB.db, self.deployment, self.leftImageFrames)
             self.datadlg=dataviewdlg.DataViewDlg(self)
             #position = self.appSettings.value('datawinposition', QPoint(10,10))
             #self.datadlg.move(position)
@@ -1942,8 +1981,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 self.__changeImage()
             else:
                 self.imageSlider.setValue(self.imageSlider.minimum())
-            # Play is for viewing: while recording the frames change only by hand, which saves the data of each
-            self.playBtn.setEnabled(not self.recordBtn.isChecked())
+            self.playBtn.setEnabled(True)
             self.measurementsDock.setDeployment(self.dataDB, self.deployment)
             if self.measurementsDock.isHidden():
                 self.measurementsDock.show()
@@ -2145,7 +2183,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             if self.measureBtn.isChecked():
                     self.measureBtn.setChecked(False)
             self.zoomBtn=0
-            self.targetLinkLabel.setText('')
+            self.updateLinkDisplay()
             if self.recordBtn.isChecked():
                 self.reloadData()
                 self.incrementCounters()
@@ -2255,6 +2293,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def play(self):
         if self.playBtn.isChecked():
+            if self.recordBtn.isChecked() and (self.measureBtn.isChecked() or self.fishStep or self.pairPoints):
+                self.playBtn.setChecked(False)
+                self.playTimer.stop()
+                self.updatePlayButton()
+                self.statusBar.showMessage('Finish marking, or press Esc, before starting playback.', 4000)
+                return
             self.playStartIndex=None
             self.playTimer.start()
         else:
@@ -2272,6 +2316,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         takes longer than the frame interval, the frames in between are skipped and the video
         still plays at the chosen speed.
         '''
+        if self.recordBtn.isChecked() and (self.measureBtn.isChecked() or self.fishStep or self.pairPoints):
+            self.stopPlay()
+            return
         frameIndex=self.imageSlider.value()
         if frameIndex>=self.imageSlider.maximum():
             # end of the deployment
@@ -2291,7 +2338,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.playStartIndex=None
         targetIndex=min(targetIndex, self.imageSlider.maximum())
         self.playLastIndex=targetIndex
-        self.imageSlider.setValue(targetIndex)
+        # Use the same path as the navigation buttons, saving comments and metadata while recording.
+        self.goToIndex(targetIndex)
 
 #####################4. UI FUNCTIONS########################################
 
@@ -2361,8 +2409,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         elif (ev.key() == Qt.Key_Home):
             # linking targets is part of recording: outside Record the marks are read only
             if self.recordBtn.isChecked():
-                self.linkBtn.setChecked(True)
-                self.toggleLink()
+                self.linkBtn.trigger()
 
         # navigate though images
         elif ev.key() in [ Qt.Key_Right, Qt.Key_Left]:
@@ -2370,6 +2417,10 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.stepFrame(1 if ev.key() == Qt.Key_Right else -1, ev.modifiers() == Qt.ControlModifier)
 
         elif (ev.key() == Qt.Key_Escape):
+            if self.linkBtn.isChecked():
+                self.cancelLink()
+                if not self.fishStep and not self.pairPoints:
+                    return
             halfPair=len(self.pairPoints)==1 # a pair that was started and is being cancelled
             if halfPair:
                 # get the zoom state before the marks are cleared
@@ -2488,9 +2539,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
 
     def imageClick(self, imageObj, clickLoc, button, currentKbKey, item):
+        if self.recordBtn.isChecked():
+            self.stopPlay()
         # whatever the click did (the handler has many ways out), the epipolar hints show the pair it left half done
         before=None
-        if (button == Qt.MouseButton.LeftButton and not self.noLoad and self.recordBtn.isChecked()
+        if (button == Qt.MouseButton.LeftButton and not self.linkBtn.isChecked() and not self.noLoad and self.recordBtn.isChecked()
                 and not self.measureBtn.isChecked() and not self.makeBoxes):
             before=self.captureMarkUndo()
         try:
@@ -2560,6 +2613,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.speciesInGrid=set(state['gridSpecies'])
         self.linkData=list(state['links'])
         self.linkBtn.setChecked(bool(self.linkData))
+        self.updateLinkDisplay()
         self.spcInd=state['species']
         for i, button in enumerate(self.spcButtons):
             button.setChecked(i == self.spcInd)
@@ -2599,6 +2653,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.updateEpipolar()
 
     def handleImageClick(self, imageObj, clickLoc, button, currentKbKey, item):
+        # In link mode a normal click on an existing mark selects it.
+        if self.linkBtn.isChecked() and not self.fishStep and not self.pairPoints:
+            if any(mark in self.pointMarks for mark in item):
+                button=Qt.MouseButton.RightButton
+            elif not self.linkData or self.linkData[0]==int(self.frameText()):
+                self.updateLinkDisplay()
+                return
         # selection code
         if button==Qt.MouseButton.RightButton:
             # first deselect everything
@@ -2629,10 +2690,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         current_tator=''
                     self.annotatorLabel.setText(current_tator)
                     
-                    query = self.dataDB.dbQuery("SELECT target_link FROM targets WHERE frame_number = "+self.frameText()+" and target_number="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'")
-                    target_link, =query.first()
-                    if target_link!='':
-                        self.targetLinkLabel.setText(target_link)
                     for pairItem, info in self.pointMarks.items():
                         if info[0]==target_number:
                             if not info[1]==imageObj:
@@ -2645,15 +2702,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.activeMark [self.gvLeft]=pairItem
                 if self.showDataCheck.isChecked():
                     self.selectValueFromImage()# this is to send delection signal to data view window and select the appropriate row
-                # if we have checked link button, put in th elink
-                # clear link display
-
-                if len(self.linkData)>0 and self.recordBtn.isChecked():
-                    self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                    " WHERE frame_number = "+self.frameText()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                    self.linkData=[]
-                    self.targetLinkLabel.setText(str(self.currentTarget))
-                    self.linkBtn.setChecked(False)
+                if item in self.pointMarks:
+                    self.pickLinkTarget(int(self.frameText()), self.currentTarget)
         else:
             try:
                 if self.fishGuideActive() and imageObj!=self.fishImage():
@@ -2823,11 +2873,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                         self.showPointChip(self.currentTarget)
                                         self.pairPoints=[]
 
-                                        if len(self.linkData)>0:
-                                            self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                                            " WHERE frame_number = "+self.frameText()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                                            self.linkData=[]
-                                            self.linkBtn.setChecked(False)
+                                        self.pickLinkTarget(int(self.frameText()), self.currentTarget)
                                         targetLabel=str(self.currentTarget)+" r = "+str(round(self.targetStereoData[0], 2))+"  e = "+str(round(self.targetStereoData[1], 2))
                                         if self.guiSettings['ShowClassOnLabel']=='true':
                                             targetLabel=targetLabel+' '+tClass
@@ -2885,11 +2931,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     str(self.targetStereoData[3])+","+str(self.targetStereoData[4])+","+str(self.targetStereoData[0])+","+str(self.targetStereoData[1])+")")
                                     self.showPointChip(self.currentTarget)
                                     self.pairPoints=[]
-                                    if len(self.linkData)>0:
-                                        self.dataDB.dbExec("UPDATE targets SET target_link = "+str(self.linkData[1])+
-                                        " WHERE frame_number = "+self.frameText()+" AND target_number ="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                                        self.linkData=[]
-                                        self.linkBtn.setChecked(False)
+                                    self.pickLinkTarget(int(self.frameText()), self.currentTarget)
 
                                     targetLabel=str(self.currentTarget)+" r = "+str(round(self.targetStereoData[0], 2))+"  e = "+str(round(self.targetStereoData[1], 2))
                                     if self.guiSettings['ShowClassOnLabel']=='true':
@@ -2924,6 +2966,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                                     self.dataDB.dbExec("INSERT INTO points (project, deployment_ID,frame_number, target_number, point_label, LX, LY, RX, RY)  "+
                                     "VALUES('"+sqlQuote(self.activeProject)+"','"+sqlQuote(self.deployment)+"',"+self.frameText()+","+str(self.currentTarget)+",'single_image_mark',"+points+")")
                                     self.pairedTarget=False
+                                    self.pickLinkTarget(int(self.frameText()), self.currentTarget)
                                     if self.showDataCheck.isChecked():
                                         self.datadlg.refreshView()
                                     # add to speices in grid if grid is activated
@@ -2951,12 +2994,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.__selectedItems=[]
             if item in self.pointMarks:
                 target=self.pointMarks[item][0]
-                if target in self.linkData:
-                    if self.linkData[1]==target:
-                        self.linkData=[]
+                if self.linkData==[int(self.frameText()), target]:
+                    self.cancelLink()
                 self.dataDB.dbExec("DELETE FROM lines WHERE frame_number = "+self.frameText()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
                 self.dataDB.dbExec("DELETE FROM points WHERE frame_number = "+self.frameText()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-                self.dataDB.dbExec("DELETE FROM targets WHERE frame_number = "+self.frameText()+" AND target_number = "+str(target)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                targetlinks.delete_target(self.dataDB, self.deployment, (int(self.frameText()), target))
             elif item in self.boxMarks:
                 boxTarget=self.boxMarks[item][0]
                 self.dataDB.dbExec("DELETE FROM bounding_boxes WHERE frame_number = "+self.frameText()+" AND target_number = "+str(boxTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
@@ -2989,17 +3031,21 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.fishStep=0
             self.gvLeft.setDimmed(False)
             self.gvRight.setDimmed(False)
-            self.statusBar.clearMessage()
-            self.showActiveImageCue()
+            if self.linkBtn.isChecked():
+                self.updateLinkDisplay()
+            else:
+                self.statusBar.clearMessage()
             return
         self.gvLeft.setDimmed(self.fishImage()!=self.gvLeft)
         self.gvRight.setDimmed(self.fishImage()!=self.gvRight)
-        self.showActiveImageCue()
         messages=['Fish: Shift+click the head in the LEFT image (a plain click only counts the fish).',
                   'Fish: click the same point of the head in the RIGHT image. Esc cancels.',
                   'Fish: click the tail in the LEFT image. Esc keeps the fish without a length.',
                   'Fish: click the same point of the tail in the RIGHT image. Esc keeps the fish without a length.']
-        self.statusBar.showMessage(messages[self.fishStep])
+        if self.linkBtn.isChecked() and self.fishStep==0:
+            self.updateLinkDisplay()
+        else:
+            self.statusBar.showMessage(messages[self.fishStep])
 
     def startFishTail(self):
         '''
@@ -3091,6 +3137,93 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         if self.showDataCheck.isChecked():
             self.datadlg.refreshView()
 
+    def deleteMeasurements(self, rowids):
+        '''Delete the selected measurements in one transaction.'''
+        if self.noLoad or self.dataDB is None or not self.recordBtn.isChecked():
+            return
+        if self.measureBtn.isChecked() or self.fishStep or self.pairPoints:
+            self.statusBar.showMessage('Finish marking, or press Esc, before deleting measurements.', 4000)
+            return
+        self.stopPlay()
+        try:
+            db=self.dataDB.db
+            where=' WHERE deployment_id=? AND rowid=?'
+            selected=[]
+            for rowid in set(rowids):
+                query=dbConnection.execute(db, 'SELECT frame_number,target_number,line_label,name FROM lines'+where,
+                                           (self.deployment, rowid))
+                if query.next():
+                    selected.append((rowid, query.value(0), query.value(1), query.value(2), query.value(3)))
+                query.finish()
+            if not selected:
+                self.measurementsDock.refresh()
+                return
+            if len(selected)==1:
+                _, frame, target, label, name=selected[0]
+                title='Delete measurement'
+                message=f'Delete {name or label or "measurement"} ({label or "measurement"}) from frame {frame}, target {target}?'
+            else:
+                title='Delete measurements'
+                message=f'Delete the {len(selected)} selected measurements?'
+            reply=QMessageBox.question(self, title, message+
+                '\n\nTargets that lose their last measurement will also lose their points and labels.',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply!=QMessageBox.StandardButton.Yes:
+                return
+            observations={(frame,target) for _,frame,target,_,_ in selected}
+            removedTargets=set()
+            targetWhere=' WHERE deployment_id=? AND frame_number=? AND target_number=?'
+            with targetlinks.transaction(db):
+                for rowid, *_ in selected:
+                    dbConnection.execute(db, 'DELETE FROM lines'+where, (self.deployment, rowid))
+                for frame, target in sorted(observations):
+                    scope=(self.deployment, frame, target)
+                    query=dbConnection.execute(db, 'SELECT 1 FROM lines'+targetWhere+' LIMIT 1', scope)
+                    hasMeasurements=query.next()
+                    query.finish()
+                    if not hasMeasurements:
+                        dbConnection.execute(db, 'DELETE FROM points'+targetWhere, scope)
+                        targetlinks.delete_target(self.dataDB, self.deployment, (frame, target))
+                        removedTargets.add((frame, target))
+            # A marking undo must not restore a measurement deliberately removed from the table.
+            self.markUndoHistory.clear()
+            displayedFrame=int(self.frameText())
+            removedLines={(target, label) for _,frame,target,label,_ in selected if frame==displayedFrame}
+            for line, (target, view, label) in list(self.lineMarks.items()):
+                if (target, label) in removedLines:
+                    if self.activeLine[view] is line:
+                        self.activeLine[view]=None
+                    if line in self.__selectedItems:
+                        self.__selectedItems.remove(line)
+                    view.removeItem(line)
+                    del self.lineMarks[line]
+            for mark, (target, view) in list(self.pointMarks.items()):
+                if (displayedFrame, target) in removedTargets:
+                    if self.activeMark[view] is mark:
+                        self.activeMark[view]=None
+                    if mark in self.__selectedItems:
+                        self.__selectedItems.remove(mark)
+                    view.removeItem(mark)
+                    del self.pointMarks[mark]
+            if (displayedFrame, self.currentTarget) in removedTargets:
+                self.currentTarget=0
+                self.pairedTarget=False
+                self.fishHeadMarks=[None, None]
+                self.fishHead=None
+                self.updateLinkDisplay()
+            for frame, target in observations-removedTargets:
+                if frame==displayedFrame:
+                    self.separateTargetLabels(target)
+            if tuple(self.linkData) in removedTargets:
+                self.cancelLink()
+            self.incrementCounters()
+            self.clearMeasureChip()
+            self.measurementsDock.refresh()
+            if self.showDataCheck.isChecked():
+                self.datadlg.refreshView()
+        except Exception:
+            self.showError()
+
     def deleteLine(self, target, label):
         '''
         deleteLine removes the line of a measurement type of a target from the data: there is one per type and target, so
@@ -3123,24 +3256,22 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         for name, in query:
             if name:
                 return name
-        species=None
-        query=self.dataDB.dbQuery("SELECT species_group FROM targets WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+self.frameText()+
-            " AND target_number="+str(target))
-        for species, in query:
-            pass
-        species=species or 'Fish'
-        numbers=[0]
-        query=self.dataDB.dbQuery("SELECT name FROM lines WHERE deployment_id='"+sqlQuote(self.deployment)+"'")
-        for name, in query:
-            if name and name.startswith(species+' ') and name[len(species)+1:].isdigit():
-                numbers.append(int(name[len(species)+1:]))
-        return species+' '+str(max(numbers)+1)
+        return targetlinks.next_name(self.dataDB.db, self.deployment, (int(self.frameText()), target))
 
     def nameMeasurement(self, target, label):
         '''
         nameMeasurement asks the name of the measurement just saved and stores it. Cancel keeps
         the name offered. Names can be changed later in the Measurements panel.
         '''
+        observation=(int(self.frameText()), target)
+        if targetlinks.has_identity(self.dataDB.db, self.deployment, observation):
+            name=targetlinks.fish_name(self.dataDB.db, self.deployment, observation)
+            if not name:
+                name=self.defaultMeasurementName(target, label)
+            targetlinks.rename(self.dataDB.db, self.deployment, observation, name)
+            self.previousLineName=None
+            self.measurementsDock.refresh()
+            return name
         default=self.defaultMeasurementName(target, label)
         name, ok=QInputDialog.getText(self, 'Measurement name', 'Name of this '+label+' measurement:', QLineEdit.EchoMode.Normal, default)
         name=name.strip() if ok and name.strip() else default
@@ -3592,8 +3723,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def goToIndex(self, targetIndex):
         '''
         goToIndex shows the frame at a slider position, as the arrow keys do: not while a measurement is taking
-        place, inside the range of the slider, with the link data of a target dropped when the frame is more than
-        one away, and with the data of the frame being left saved while recording (changeFrame).
+        place, inside the range of the slider, with the data of the frame being left saved while recording (changeFrame).
         '''
         if self.noLoad:
             return
@@ -3605,11 +3735,6 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             targetIndex = self.imageSlider.maximum()
         if targetIndex < self.imageSlider.minimum():
             targetIndex = self.imageSlider.minimum()
-        #  check for linked data, null out if more than one frame out
-        if len(self.linkData)>0:
-            if not (targetIndex - self.linkData[0]) in [0, 1]:
-                self.linkData=[]
-                self.linkBtn.setChecked(False)
         self.changeFrame(targetIndex)
         
     def editSpecies(self):
@@ -3673,12 +3798,22 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             
             
 
+    def setAnnotator(self):
+        # Ask explicitly from Settings, or once before the first recording; remember it across launches.
+        dlg=annotatorDlg.AnnotatorDlg(self)
+        dlg.annotator=self.annotator or 'UNID'
+        dlg.annotatorEdit.setText(self.annotator or '')
+        dlg.exec()
+        self.annotator=dlg.annotator.strip() or 'UNID'
+        self.appSettings.setValue('annotator', self.annotator)
+
     def toggleRecord(self):
         self.markUndoHistory.clear()
         if self.deployment==None:
             QMessageBox.warning(self, "ERROR", "Please load a deployment.")
             self.recordBtn.setChecked(False)
             return
+        self.stopPlay()
         # whatever was half done does not carry over to the other mode (or to another frame): a pair of points, a fish being marked,
         # lines being drawn, a target link, the target that was selected
         self.pairPoints=[]
@@ -3686,22 +3821,18 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.fishLines={}
         self.activeLine[self.gvLeft]=None
         self.activeLine[self.gvRight]=None
-        self.linkData=[]
-        self.linkBtn.setChecked(False)
+        self.cancelLink()
         self.measureBtn.setChecked(False)
         self.currentTarget=0
         self.pairedTarget=False
         if self.recordBtn.isChecked():
-            self.stopPlay()
             self.imageSlider.setEnabled(False)
-            self.playBtn.setEnabled(False)
+            self.playBtn.setEnabled(True)
             self.speciesDockWidget.show()
             if self.metadataCheckBox.isChecked():
                 self.metadataDockWidget.show()
-            # get the annotator now!
-            dlg=annotatorDlg.AnnotatorDlg()
-            dlg.exec()
-            self.annotator=dlg.annotator
+            if not self.annotator:
+                self.setAnnotator()
             self.frameCommentDlg=framecommentdlg.CommentDlg(self)
             self.frameCommentDlg.hide()
             # replace the read only marks with editable ones
@@ -3775,6 +3906,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def toggleMeasure(self):
         if self.measureBtn.isChecked():
+            self.stopPlay()
             if not self.stereoAvailable():
                 self.measureBtn.setChecked(False)
                 return
@@ -3816,21 +3948,96 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 #                if i in self.lineMarks:
 #                    self.garbage.append(self.lineMarks.pop(i))
 
-    def toggleLink(self):
-        if self.linkBtn.isChecked():
-            self.linkData=[int(self.frameText()),  self.currentTarget]
+    def updateLinkDisplay(self, parent=None):
+        if self.linkData:
+            frame, target=self.linkData
+            text=f'From {frame} / {target}'
+            self.statusBar.showMessage(f'Link from frame {frame}, target {target}. Click the same fish in Measurements '
+                'or on an image in another frame, or mark it there. Esc cancels.')
+        elif self.linkBtn.isChecked():
+            text='Choose first fish'
+            self.statusBar.showMessage('Click the first fish in Measurements or on an image. Esc cancels.')
         else:
-            self.linkData=[]
+            text=f'{parent[0]} / {parent[1]}' if parent else ''
+        self.targetLinkLabel.setText(text)
+        self.measurementsDock.linkAction.setText('Link to this fish' if self.linkData else 'Link fish…')
+
+    def cancelLink(self):
+        self.linkData=[]
+        self.linkBtn.setChecked(False)
+        self.updateLinkDisplay()
+        self.updateFishGuide()
+
+    def toggleLink(self):
+        if not self.linkBtn.isChecked() or not self.recordBtn.isChecked():
+            self.cancelLink()
+            return
+        self.stopPlay()
+        if self.measureBtn.isChecked() or self.fishStep or self.pairPoints or self.makeBoxes:
+            self.cancelLink()
+            self.statusBar.showMessage('Finish marking, or press Esc, before linking fish.', 4000)
+            return
+        self.linkData=[]
+        if self.currentTarget and any(info[0]==self.currentTarget for info in self.pointMarks.values()):
+            self.linkData=[int(self.frameText()), self.currentTarget]
+        self.updateLinkDisplay()
+
+    def linkFromTable(self, frame, target):
+        if not self.recordBtn.isChecked() or self.measureBtn.isChecked() or self.fishStep or self.pairPoints or self.makeBoxes:
+            return
+        self.stopPlay()
+        self.linkBtn.setChecked(True)
+        self.showMeasurement(frame, target)
+
+    def pickLinkTarget(self, frame, target):
+        if not self.recordBtn.isChecked():
+            return
+        if not self.linkBtn.isChecked():
+            parent=self.dataDB.dbQuery("SELECT target_link_frame,target_link FROM targets WHERE frame_number="+str(frame)+
+                " AND target_number="+str(target)+" AND deployment_id='"+sqlQuote(self.deployment)+"'").first()
+            self.updateLinkDisplay(parent if parent[0] is not None else None)
+            return
+        if not self.linkData:
+            self.linkData=[frame, target]
+            self.updateLinkDisplay()
+            return
+        source=tuple(self.linkData)
+        try:
+            name=targetlinks.link(self.dataDB.db, self.deployment, source, (frame, target))
+        except ValueError as error:
+            self.statusBar.showMessage(str(error), 4500)
+            return
+        self.cancelLink()
+        self.markUndoHistory.clear()
+        self.measurementsDock.refresh()
+        if self.showDataCheck.isChecked():
+            self.datadlg.refreshView()
+        self.pickLinkTarget(frame, target)
+        self.statusBar.showMessage(f'Linked {name or "fish"} · frames {source[0]} and {frame}', 4500)
+
+    def refreshFishNames(self):
+        if not self.noLoad and not self.recordBtn.isChecked():
+            self.showAnnotations()
 
     def deleteLink(self):
-            reply=QMessageBox.warning(self, "WARNING", "Sure you want to delete the target link for \ntarget "+str(self.currentTarget)+" and linked target "+self.targetLinkLabel.text()+"?",  QMessageBox.Yes, QMessageBox.No)
-            if reply==QMessageBox.No:
-                return
-            self.linkData=[]
-            self.dataDB.dbQuery("UPDATE targets set target_link=NULL WHERE frame_number = "+self.frameText()+" and target_number="+str(self.currentTarget)+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
-            self.targetLinkLabel.setText('')
-                        
-                        
+        if not self.recordBtn.isChecked() or not self.currentTarget:
+            return
+        frame=int(self.frameText())
+        parent=self.dataDB.dbQuery("SELECT target_link_frame,target_link FROM targets WHERE frame_number="+str(frame)+
+            " AND target_number="+str(self.currentTarget)+" AND deployment_id='"+sqlQuote(self.deployment)+"'").first()
+        if parent[1] is None:
+            self.statusBar.showMessage('This target has no earlier link.', 4000)
+            return
+        if QMessageBox.question(self, 'Remove link', f'Remove the link from frame {frame}, target {self.currentTarget} '
+                f'to frame {parent[0]}, target {parent[1]}?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)!=QMessageBox.Yes:
+            return
+        targetlinks.set_parent(self.dataDB.db, self.deployment, (frame, self.currentTarget), (None, None))
+        self.markUndoHistory.clear()
+        self.cancelLink()
+        self.measurementsDock.refresh()
+        if self.showDataCheck.isChecked():
+            self.datadlg.refreshView()
+
     def metadataSelAction(self):
 
         self.sender().setAutoExclusive(False)
@@ -3994,11 +4201,20 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         '''
         if self.noLoad:
             return
+        if self.linkBtn.isChecked():
+            if self.fishStep or self.pairPoints or self.measureBtn.isChecked():
+                self.statusBar.showMessage('Finish marking, or press Esc, before choosing another fish.', 4000)
+                return
+            self.stopPlay()
         self.annotationFocus=(frame, target)
         if not self.recordBtn.isChecked() and self.leftImageFrames[self.imageSlider.value()]==frame:
             # same frame: the slider doesn't move, redraw here
             self.showAnnotations()
         self.changeSelectionFromTable(frame, target)
+        if self.recordBtn.isChecked() and not self.measureBtn.isChecked() and not self.fishStep and not self.pairPoints:
+            self.currentTarget=target
+            self.pairedTarget=all(self.activeMark.values())
+            self.pickLinkTarget(frame, target)
 
     def reloadData(self, annotationsOnly=False):
         if not self.recordBtn.isChecked():
@@ -4153,7 +4369,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                         
                 # delete bad target (temporary)
                 for t in targetToDelete:
-                    self.dataDB.dbExec("DELETE FROM targets WHERE frame_number="+self.frameText()+" AND target_number="+t+"  AND deployment_ID='"+sqlQuote(self.deployment)+"'")
+                    targetlinks.delete_target(self.dataDB, self.deployment, (int(self.frameText()), int(t)))
                 if targetToDelete:
                     self.updateTimelineMarks()
                 if annotationsOnly:
