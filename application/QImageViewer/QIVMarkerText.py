@@ -42,7 +42,8 @@ class QIVMarkerText(QGraphicsSimpleTextItem):
     def __init__(self, position, text, offset=QPointF(0,0), size=10, font='helvetica', italics=False,
                  weight=-1, color=[0,0,0], alpha=255, halign='left', valign='bottom',
                  selectable=False, movable=False, name='MarkerText', view=None, rotation=0,
-                 isCosmetic=False, drawBackdrop=False, backdropColor=[0,0,0], backdropAlpha=150):
+                 isCosmetic=False, drawBackdrop=False, backdropColor=[0,0,0], backdropAlpha=150,
+                 anchorSegment=None):
 
         super(QIVMarkerText, self).__init__(text)
 
@@ -62,6 +63,7 @@ class QIVMarkerText(QGraphicsSimpleTextItem):
         self.valign = valign
         self.view = view
         self.offset = offset
+        self.anchorSegment = anchorSegment
         self.rotation = rotation
         self.isCosmetic = isCosmetic
         self.backdrop_color = backdropColor
@@ -119,6 +121,12 @@ class QIVMarkerText(QGraphicsSimpleTextItem):
                     (self.offset.y() * scale))
         else:
             posY = self.position.y() + (self.offset.y() * scale)
+
+        if self.anchorSegment is not None:
+            # Clear the part of the segment behind the text, even as zoom changes.
+            span = abs(self.anchorSegment.dx())
+            covered = min(1.0, boundingRect.width() * scale / span) if span else 1.0
+            posY -= abs(self.anchorSegment.dy()) * covered / 2.0
 
         #  create a QPointF defining the position
         position = QPointF(posX, posY)

@@ -184,6 +184,43 @@ class AnnotationUndoTests(unittest.TestCase):
         self.assertEqual(self.count('targets'), 0)
         self.assertEqual(self.window.fishStep, 0)
 
+    def test_saved_observation_id_appears_above_both_segments(self):
+        window = self.window
+        window.labelCheck.setChecked(True)
+        window.computeMatchBox.setChecked(True)
+        del window.nameMeasurement
+        with patch.object(main.QInputDialog, 'getText', return_value=('sargus 1', True)):
+            self.click(shift=True, x=150)
+            self.click(x=65, y=105)
+
+        def assertLabels(obsId):
+            self.assertEqual(len(window.lineMarks), 2)
+            for line, (_, view, _) in window.lineMarks.items():
+                label, = line.labels
+                self.assertTrue(label.isVisible())
+                self.assertEqual(label.text(), obsId)
+                viewport = view.viewportTransform()
+                bounds = label.deviceTransform(viewport).mapRect(label.boundingRect())
+                midpoint = viewport.map(line.getLine().center())
+                self.assertAlmostEqual(bounds.center().x(), midpoint.x())
+                self.assertLess(bounds.bottom(), midpoint.y())
+            self.assertTrue(all(not label.isVisible() for mark in window.pointMarks for label in mark.labels))
+
+        assertLabels('sargus 1')
+        table = window.measurementsDock.table
+        self.assertEqual(table.horizontalHeaderItem(0).text(), 'obs_id')
+        self.assertGreater(float(table.item(0, 2).text()), 0)
+        table.item(0, 0).setText('sargus 2')
+        assertLabels('sargus 2')
+        window.clearMarks()
+        window.reloadData(annotationsOnly=True)
+        assertLabels('sargus 2')
+        window.recordBtn.setChecked(False)
+        window.showAnnotations()
+        assertLabels('sargus 2')
+        window.labelCheck.setChecked(False)
+        self.assertTrue(all(not label.isVisible() for line in window.lineMarks for label in line.labels))
+
     def test_read_only_and_separate_edits_are_preserved(self):
         self.click()
         self.window.recordBtn.setChecked(False)

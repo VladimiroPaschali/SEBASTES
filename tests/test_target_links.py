@@ -123,3 +123,30 @@ class TargetLinkTests(unittest.TestCase):
             self.click(x=130)
         self.assertEqual(self.rows('SELECT frame_number,name FROM lines ORDER BY frame_number'), [(0,'sargus 1'), (99,'sargus 1')])
         self.assertEqual(self.rows('SELECT target_link_frame,target_link FROM targets WHERE frame_number=99'), [(0,3)])
+
+    def test_link_can_start_after_returning_to_the_only_fish_in_a_frame(self):
+        window = self.window
+        window.leftImageFrames = [1, 2]
+        window.linkBtn.setEnabled(True)
+        del window.nameMeasurement
+        window.computeMatchBox.setChecked(True)
+        with patch.object(fixture.main.QInputDialog, 'getText', return_value=('sargus 1', True)) as naming:
+            self.click(shift=True)
+            self.click(x=130)
+            with patch.object(window, 'writeFrameData'), patch.object(window, 'readImage'):
+                window.goToIndex(1)
+                window.goToIndex(0)
+                window.linkBtn.trigger()
+                window.goToIndex(1)
+            window.computeMatchBox.setChecked(False)
+            self.click(shift=True)
+            self.assertEqual(window.fishStep, 1)
+            self.assertEqual(len(window.pairPoints), 1)
+            self.click(right=True, x=55)
+            self.click(x=130)
+            self.click(right=True, x=125)
+        naming.assert_called_once()
+        self.assertEqual(self.rows('SELECT frame_number, name FROM lines ORDER BY frame_number'),
+                         [(1, 'sargus 1'), (2, 'sargus 1')])
+        self.assertEqual(self.rows('SELECT target_link_frame, target_link FROM targets WHERE frame_number=2'),
+                         [(1, 1)])

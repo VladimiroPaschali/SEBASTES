@@ -49,10 +49,6 @@ class GuiSettingDlg(QDialog, ui_GuiSettingDlg.Ui_guiSettingDlg):
             self.classLabelCheckBox.setChecked(True)
         else:
             self.classLabelCheckBox.setChecked(False)
-        if self.guiSettings['RetainSpeciesSelection']=='retain':
-            self.spcSelRetainRadio.setChecked(True)
-        else:
-            self.spcSelClearRadio.setChecked(True)
 
     def getColor(self):
         if self.sender()==self.targetLineColorBtn:
@@ -91,10 +87,6 @@ class GuiSettingDlg(QDialog, ui_GuiSettingDlg.Ui_guiSettingDlg):
             self.guiSettings['DefaultMetadataSelection']='retain'
         else:
             self.guiSettings['DefaultMetadataSelection']='clear'
-        if self.spcSelRetainRadio.isChecked():
-            self.guiSettings['RetainSpeciesSelection']='retain'
-        else:
-            self.guiSettings['RetainSpeciesSelection']='clear'
         if self.classLabelCheckBox.isChecked():
             self.guiSettings['ShowClassOnLabel']='true'
         else:

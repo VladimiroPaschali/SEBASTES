@@ -68,7 +68,7 @@ class QIVDimensionLine(QGraphicsItemGroup):
 
     def addLabel(self, position, text, size=10, font='helvetica', italics=False, weight=-1,
                 color=[0,0,0], alpha=255, halign='left', valign='top', name='QIVDimLabel',
-                offset=None):
+                offset=None, aboveSegment=False):
         """
         Add a label to the dimension line. Labels are children of the dimension line.
 
@@ -100,13 +100,18 @@ class QIVDimensionLine(QGraphicsItemGroup):
         if (offset == None) or (offset == []):
             offset = QPointF(0,0)
 
-        #  apply the text label offset
-        position = position + offset
+        anchorSegment = self.getLine() if aboveSegment else None
+        if aboveSegment:
+            position = anchorSegment.center()
+        else:
+            position = position + offset
+            offset = QPointF(0,0)
 
         #  create a QIVMarkerText associated with the provided mark/line
         textItem = QIVMarkerText(position, text, size=size, font=font, italics=italics,
                                  weight=weight, color=color, alpha=alpha, halign=halign,
-                                 valign=valign, name=name, view=self.view)
+                                 valign=valign, name=name, view=self.view, offset=offset,
+                                 anchorSegment=anchorSegment)
 
         #  add the label to our
         #textItem.setMarkerLabel(True)
@@ -114,6 +119,7 @@ class QIVDimensionLine(QGraphicsItemGroup):
         self.addToGroup(textItem)
 
         self.prepareGeometryChange()
+        return textItem
 
 
     def setLabelText(self, labels, text):

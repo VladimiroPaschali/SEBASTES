@@ -11,7 +11,7 @@ import targetlinks
 
 #  The columns the user reads first come first, so that the panel at its default width shows them: the name, the species
 #  and the length, then where the fish is (frame and target) and the details.
-COLUMNS = ['Name', 'Species', 'Length (cm)', 'Frame', 'Target', 'Measurement', 'Distance (cm)', 'e (px)', 'Linked from (frame / target)']
+COLUMNS = ['obs_id', 'Species', 'Length (cm)', 'Frame', 'Target', 'Measurement', 'Distance (cm)', 'e (px)', 'Linked from (frame / target)']
 NAME, SPECIES, LENGTH, FRAME, TARGET = 0, 1, 2, 3, 4
 
 
@@ -56,6 +56,7 @@ class MeasurementsDock(QDockWidget):
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeader(CompactHeader(self.table))
         self.table.setHorizontalHeaderLabels(COLUMNS)
+        self.table.horizontalHeaderItem(NAME).setToolTip('Observation ID')
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -163,7 +164,7 @@ class MeasurementsDock(QDockWidget):
                 item.setData(Qt.ItemDataRole.DisplayRole, value)
                 if col == NAME:
                     item.setData(Qt.ItemDataRole.UserRole, rowid)
-                    item.setToolTip('Double-click to rename this fish across its linked observations')
+                    item.setToolTip('Double-click to edit the observation ID. Linked observations share the same ID.')
                 else:
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.table.setItem(row, col, item)

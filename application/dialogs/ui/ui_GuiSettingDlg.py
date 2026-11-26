@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'GuiSettingDlg.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -90,28 +90,6 @@ class Ui_guiSettingDlg(object):
 
 
         self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.groupBox)
-
-        self.label_3 = QLabel(guiSettingDlg)
-        self.label_3.setObjectName(u"label_3")
-
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.label_3)
-
-        self.groupBox_2 = QGroupBox(guiSettingDlg)
-        self.groupBox_2.setObjectName(u"groupBox_2")
-        self.horizontalLayout_3 = QHBoxLayout(self.groupBox_2)
-        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.spcSelRetainRadio = QRadioButton(self.groupBox_2)
-        self.spcSelRetainRadio.setObjectName(u"spcSelRetainRadio")
-
-        self.horizontalLayout_3.addWidget(self.spcSelRetainRadio)
-
-        self.spcSelClearRadio = QRadioButton(self.groupBox_2)
-        self.spcSelClearRadio.setObjectName(u"spcSelClearRadio")
-
-        self.horizontalLayout_3.addWidget(self.spcSelClearRadio)
-
-
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.FieldRole, self.groupBox_2)
 
         self.label_2 = QLabel(guiSettingDlg)
         self.label_2.setObjectName(u"label_2")
@@ -262,10 +240,6 @@ class Ui_guiSettingDlg(object):
         self.groupBox.setTitle("")
         self.metaSelRetainRadio.setText(QCoreApplication.translate("guiSettingDlg", u"Retain Selection", None))
         self.metaSelClearRadio.setText(QCoreApplication.translate("guiSettingDlg", u"Clear Selection", None))
-        self.label_3.setText(QCoreApplication.translate("guiSettingDlg", u"RetainSpeciesSelection", None))
-        self.groupBox_2.setTitle("")
-        self.spcSelRetainRadio.setText(QCoreApplication.translate("guiSettingDlg", u"Retain Selection", None))
-        self.spcSelClearRadio.setText(QCoreApplication.translate("guiSettingDlg", u"Clear Selection", None))
         self.label_2.setText(QCoreApplication.translate("guiSettingDlg", u"ShowClassOnLabel", None))
         self.classLabelCheckBox.setText("")
         self.label_24.setText(QCoreApplication.translate("guiSettingDlg", u"SceneColor", None))

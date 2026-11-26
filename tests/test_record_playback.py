@@ -49,6 +49,34 @@ class RecordPlaybackTests(unittest.TestCase):
         self.assertEqual(window.frameText(), '0')
         self.assertEqual(len(window.pairPoints), 1)
 
+    def test_species_stays_selected_across_frames_until_record_stops(self):
+        window = self.window
+        first, second = window.spcButtons[:2]
+        first.setChecked(False)
+        second.setText('Other fish')
+        second.setStyleSheet('background-color: rgb(0, 255, 0);')
+        window.spcColors.append([0, 255, 0])
+        window.showSpeciesButtons(2)
+        window.selectSpeciesByKey(1)
+        self.click()
+        with patch.object(window, 'readImage', return_value='test-image'):
+            window.changeFrame(1)
+            self.assertTrue(first.isChecked())
+            self.click()
+            window.selectSpeciesByKey(2)
+            self.assertFalse(first.isChecked())
+            window.changeFrame(0)
+            self.assertTrue(second.isChecked())
+            self.click(x=90)
+        species = list(window.dataDB.dbQuery('SELECT frame_number,species_group FROM targets ORDER BY rowid'))
+        self.assertEqual(species, [['0', 'Fish'], ['1', 'Fish'], ['0', 'Other fish']])
+        window.recordBtn.trigger()
+        self.assertFalse(second.isChecked())
+        self.assertIsNone(window.spcInd)
+        window.recordBtn.trigger()
+        self.click(x=110)
+        self.assertEqual(self.count('targets'), 3)
+
     def test_measure_target_pauses_play_and_timer_does_not_advance_during_measurement(self):
         window = self.window
         window.computeMatchBox.setChecked(True)
