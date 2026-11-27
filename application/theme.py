@@ -157,6 +157,8 @@ QToolBar QToolButton[segment]:disabled { border-color: $border; }
 
 QDockWidget::title { padding: 5px 8px; text-align: left; border-bottom: 1px solid $border; }
 
+QTableWidget#measurementsTable::item:selected { background-color: $accent; color: $accentText; }
+
 QStatusBar { border: none; border-top: 1px solid $border; }
 QStatusBar::item { border: none; }
 QStatusBar QLabel { color: $textMuted; }

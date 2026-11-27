@@ -425,7 +425,6 @@
           </layout>
          </item>
         </layout>
-        <zorder></zorder>
        </widget>
       </item>
       <item>
@@ -486,6 +485,24 @@
        </property>
        <property name="text">
         <string>Apply</string>
+       </property>
+       <property name="toolTip">
+        <string>Apply to this camera</string>
+       </property>
+       <property name="default">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pbApplyBoth">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Apply to both cameras</string>
        </property>
       </widget>
      </item>

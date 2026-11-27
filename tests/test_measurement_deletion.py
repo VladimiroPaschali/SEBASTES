@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import test_annotation_undo as annotation_fixture
 import measurementsdock
-from dbConnection import sqlQuote
-from measurementsdock import NAME
+from dbConnection import execute, sqlQuote
+from measurementsdock import FRAME, LENGTH, MEASUREMENT_ROLE, NAME, SPECIES
 from PySide6.QtCore import QItemSelectionModel, Qt
 from PySide6.QtWidgets import QMessageBox
 
@@ -157,6 +157,68 @@ class MeasurementDeletionTests(unittest.TestCase):
             confirm.assert_not_called()
         self.assertEqual(self.count('lines'), 1)
         self.assertEqual(self.window.fishStep, 2)
+
+    def test_marker_selects_length_for_the_exact_frame_and_target(self):
+        self.measuredFish()
+        window = self.window
+        dock = window.measurementsDock
+        db = window.dataDB.db
+        execute(db, "UPDATE lines SET name='sargus 1'")
+        execute(db, """INSERT INTO lines(deployment_id, frame_number, target_number, line_label, name, length,
+                                        LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2)
+            SELECT deployment_id, frame_number, target_number, 'width', name, 2,
+                   LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2 FROM lines""")
+        execute(db, """INSERT INTO lines(deployment_id, frame_number, target_number, line_label, name, length)
+            VALUES(?, 1, 1, 'length', 'sargus 1', 20)""", (window.deployment,))
+        dock.refresh()
+        dock.table.sortItems(FRAME, Qt.SortOrder.DescendingOrder)
+        navigation = []
+        dock.goToTarget.connect(lambda *args: navigation.append(args))
+
+        for recording in (True, False):
+            window.recordBtn.setChecked(recording)
+            if not recording:
+                window.showAnnotations()
+            mark = next(mark for mark, (_, view) in window.pointMarks.items() if view is window.gvLeft)
+            self.assertEqual(window.gvLeft.filterSelectedItems([mark]), [mark])
+            window.imageClick(window.gvLeft, mark.markItem.pos(), Qt.RightButton, None, [mark])
+            index, = dock.visibleSelectedRows()
+            self.assertEqual(dock.observationAt(index.row()), (0, 1))
+            self.assertEqual(index.data(MEASUREMENT_ROLE), 'length')
+        self.assertEqual(navigation, [])
+
+    def test_filters_combine_and_keep_hidden_rows_out_of_actions(self):
+        dock = self.window.measurementsDock
+        db = self.window.dataDB.db
+        dep = self.window.deployment
+        data = [(10, 1, 'Sargus', 'sargus 2', 12.5),
+                (12, 1, 'Sargus', 'sargus 1', 12.5),
+                (15, 1, 'Salpa', 'sargus 3', 12.5),
+                (18, 1, 'Sargus', 'sargus 4', 25),
+                (19, 1, 'Sargus', 'fish 5', 12.5)]
+        for frame, target, species, name, length in data:
+            execute(db, 'INSERT INTO targets(deployment_id, frame_number, target_number, species_group) VALUES(?,?,?,?)',
+                    (dep, frame, target, species))
+            execute(db, 'INSERT INTO lines(deployment_id, frame_number, target_number, name, length) VALUES(?,?,?,?,?)',
+                    (dep, frame, target, name, length))
+        dock.refresh()
+        table = dock.table
+        self.assertEqual([table.horizontalHeaderItem(column).text() for column in range(table.columnCount())],
+                         ['obs_id', 'Species', 'Length (cm)', 'Frame'])
+
+        for column, value in [(NAME, 'SARGUS'), (SPECIES, 'Sarg'), (LENGTH, '12,5'), (FRAME, '10-18')]:
+            dock.columnFilters[column].setText(value)
+        table.sortItems(NAME, Qt.SortOrder.DescendingOrder)
+        table.selectAll()
+        self.assertEqual([table.item(index.row(), NAME).text() for index in dock.visibleSelectedRows()],
+                         ['sargus 2', 'sargus 1'])
+        dock.columnFilters[FRAME].setText('12')
+        dock.selectTarget(12, 1)
+        index, = dock.visibleSelectedRows()
+        self.assertEqual(table.item(index.row(), NAME).text(), 'sargus 1')
+        dock.selectTarget(10, 1)
+        self.assertFalse(dock.visibleSelectedRows())
+        self.assertFalse(dock.deleteAction.isEnabled())
 
 
 if __name__ == '__main__':

@@ -861,6 +861,18 @@ class QViewerBase(QGraphicsView):
         self.zoomLevel = 0
         self.setTransform(QTransform())
 
+    def viewState(self):
+        viewport = self.viewport()
+        center = QPointF(viewport.width() / 2, viewport.height() / 2)
+        sceneCenter = self.viewportTransform().inverted()[0].map(center)
+        return self.transform(), sceneCenter, self.zoomLevel
+
+    def restoreViewState(self, state):
+        transform, sceneCenter, zoomLevel = state
+        self.setTransform(transform)
+        self.centerOnPoint(sceneCenter)
+        self.zoomLevel = zoomLevel
+
 
     def fillExtent(self, verticalOnly=False, horizontalOnly=False, useScene=False):
         """

@@ -56,12 +56,16 @@ def next_name(db, deployment, observation):
     prefix = species + ' '
     names = execute(db, """SELECT name FROM lines WHERE deployment_id=? AND name IS NOT NULL
         UNION SELECT fish_name FROM targets WHERE deployment_id=? AND fish_name IS NOT NULL""", (deployment, deployment))
-    highest = 0
+    used_numbers = set()
     while names.next():
         name = names.value(0)
-        if name.startswith(prefix) and name[len(prefix):].isdecimal():
-            highest = max(highest, int(name[len(prefix):]))
-    return prefix + str(highest + 1)
+        suffix = name[len(prefix):]
+        if name.startswith(prefix) and suffix.isdecimal():
+            used_numbers.add(int(suffix))
+    number = 1
+    while number in used_numbers:
+        number += 1
+    return prefix + str(number)
 
 
 def rename(db, deployment, observation, name):

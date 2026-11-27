@@ -200,6 +200,8 @@ If `CalibrationFileName` is empty, SEBASTES works without 3D measurements: you c
 
 ### Marking and measuring fish
 
+Use **View > Detach camera panel** to move both camera views into one window. SEBASTES opens it on a second monitor when one is available. You can move or maximize it with its title bar, while the timeline and annotation panels stay in the main window. Close the camera window or choose **View > Dock camera panel** to bring both views back.
+
 While recording in stereo mode with a calibration, SEBASTES guides the clicks: the image that is not waiting for a click is dimmed and clicks in it are ignored, and the status bar says what to click next. Click a species button, then:
 
 1. **Shift + click** the head in the left image (or tick **Stereo Targets Only** and click). The left image dims.
@@ -208,7 +210,7 @@ While recording in stereo mode with a calibration, SEBASTES guides the clicks: t
 
 When the first point of a pair is clicked, SEBASTES draws a dashed line in the other image, the epipolar curve: the same point of the fish must lie on it, so click where the line crosses the fish. It is drawn for the head, for the tail, and for the two ends of a line drawn in one image with **Measure Target**. It goes when the pair is complete, with **Esc**, and when you change frame. **View > Epipolar Hints** turns it off; the choice is remembered.
 
-SEBASTES then saves the length as the target's line (the measurement chosen in the list next to **Measure Target**, `length` by default) and asks for an observation ID. The proposed ID is the species followed by the next free number (`Sargus 1`, `Sargus 2`, ...), or the ID the fish already has when you measure it again. **Enter** accepts the ID and **Cancel** keeps the proposed ID. Shift is needed only for the first click. With **Auto Match** ticked, the right-image points are found for you: one click on the head and one on the tail. **Esc** cancels the fish being marked; after the head, it keeps the target without a length.
+SEBASTES then saves the length as the target's line (the measurement chosen in the list next to **Measure Target**, `length` by default) and asks for an observation ID. For a new fish, it proposes the species followed by the lowest available number (`Sargus 1`, `Sargus 2`, ...). A number becomes available again when all observations with that ID have been deleted. When you remeasure a fish, SEBASTES proposes its current ID. **Enter** accepts the ID and **Cancel** keeps the proposed ID. Shift is needed only for the first click. With **Auto Match** ticked, the right-image points are found for you: one click on the head and one on the tail. **Esc** cancels the fish being marked; after the head, it keeps the target without a length.
 
 After each measurement the status bar shows a short chip with how good it is, for example `Fish A · 31.2 cm · e 0.4 px`: the name and length and the reprojection error `e`. A point target shows its range and `e`. When `epi`, how far the clicks are from the epipolar line of their match (the worse end of a line), is 2 px or more, it is added to the chip; the tooltip always gives the range from the left camera (for a fish, of the middle of its line) and `epi`. The chip is green when `e` is below 2 px, amber below 5 px and red above that. A large `e` on every fish means the calibration does not match the videos (see Stereo calibration); a large `epi` on one fish means its two clicks are not the same point. Hover over the chip for this explanation. It appears with the first measurement of a deployment.
 
@@ -218,13 +220,17 @@ While recording, **Ctrl+Z** undoes the last marking click in the current frame, 
 
 To move around a zoomed image while recording, hold **Space** over either image: the cursor becomes an open hand. Hold the left mouse button and drag to pan; the hand closes during the drag and no fish is marked. Release Space to resume marking. A drag that started as a pan remains a pan until you release the mouse button, even if you release Space first. Outside Record, Space keeps its Play/Pause shortcut.
 
+Each camera keeps its zoom and position as you move through frames. Hold **Space** and double-click either image to fit and center both camera images in their windows.
+
 When **Show Labels** is on, the observation ID is centered above the measurement segment in each image. Read the numeric measurements in **Measurements**. The exported `*_lines.csv` calls the identifier `obs_id`. The database stores the same value in `lines.NAME`.
 
-The species buttons are next to the left image. The **Measurements** panel, next to the right image, lists the observation ID (`obs_id`), species, length (cm), frame, target, measurement, distance from the left camera (cm) and error for each measurement. The first five columns fit the panel at its default width. Scroll to see the others or drag its edge to resize it. Double-click an ID to edit it, click a row to show the fish in its frame, or click a column header to sort.
+The species buttons are next to the left image. The **Measurements** panel on the right shows `obs_id`, species, length (cm) and frame. The four filters above the table work together. Enter part of an ID or species name, or filter length and frame by an exact value or a range such as `10-20`. Double-click an ID to edit it, click a row to show the fish in its frame, or click a column header to sort. Right-click a marker in either image to select its measurement row when it matches the current filters. The deployment database and exports still contain the measurement details and links.
 
-While recording, select a measurement in **Measurements**, press **Link fish…**, then click the same fish's row in any other frame. You can also use **Link Target** (**Home**) on the image and click an existing mark or mark the fish in another frame. **Esc** cancels. The first selected fish supplies the shared name if it has one. Double-clicking the name renames the linked observations together. **Linked from (frame / target)** shows the previous observation, even across gaps. When an older deployment opens, existing links inherit the earliest available measurement name in each sequence.
+While recording, select a measurement in **Measurements**, press **Link fish…**, then click the same fish's row in any other frame. You can also use **Link Target** (**Shift+X** or **Home**) on the image. If you haven't picked a marker and the frame contains several fish, the most recent annotation of the active species is used as the source. You can then click an existing mark or mark the fish in another frame. **Esc** cancels. The first selected fish supplies the shared name if it has one. Double-clicking the name renames the linked observations together. When an older deployment opens, existing links inherit the earliest available measurement name in each sequence.
 
 Outside Record the marks, segments and observation IDs remain visible. Clicking a row of the Measurements panel highlights that fish and fades the other fish of the same frame until you move to another frame.
+
+A warning icon in **Species** flags an observation ID named for a different known species. Hover over the icon to compare the recorded species with the one in the ID.
 
 To delete measurements while recording, select their rows in **Measurements** with **Ctrl+click** or select a range with **Shift+click**. Click **Delete measurements**, or right-click a selected row and choose the same command. One confirmation removes all selected measurements and their lines in both images. If a target loses its last measurement, its points and labels (including range and error) are removed too. Finish any marking in progress, or press **Esc**, before deleting.
 
@@ -249,7 +255,7 @@ Results are written to `<deployment>/data/<project>_<deployment>.db`, a SQLite d
 | `*_bounding_boxes.csv` | Bounding boxes from **Create training set** |
 | `*_frame_metadata.csv` | Frame metadata |
 
-The image adjustments (brightness, contrast…) are saved to `<deployment>_image_adjustments.npy`.
+In **Image Adjustments**, **Apply** saves the adjustments for the current camera. **Apply to both cameras** copies the same adjustments to the left and right images. Adjustments are saved to `<deployment>_image_adjustments.npy`.
 
 ## Troubleshooting
 

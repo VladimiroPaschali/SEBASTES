@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'imageAdjustmentsDlg.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.12.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -268,6 +268,12 @@ class Ui_imageAdjustmentsDlg(object):
 
         self.horizontalLayout_2.addWidget(self.pbApply)
 
+        self.pbApplyBoth = QPushButton(imageAdjustmentsDlg)
+        self.pbApplyBoth.setObjectName(u"pbApplyBoth")
+        self.pbApplyBoth.setFont(font3)
+
+        self.horizontalLayout_2.addWidget(self.pbApplyBoth)
+
         self.pbCancel = QPushButton(imageAdjustmentsDlg)
         self.pbCancel.setObjectName(u"pbCancel")
         self.pbCancel.setFont(font3)
@@ -279,6 +285,9 @@ class Ui_imageAdjustmentsDlg(object):
 
 
         self.retranslateUi(imageAdjustmentsDlg)
+
+        self.pbApply.setDefault(True)
+
 
         QMetaObject.connectSlotsByName(imageAdjustmentsDlg)
     # setupUi
@@ -303,6 +312,10 @@ class Ui_imageAdjustmentsDlg(object):
         self.label_3.setText(QCoreApplication.translate("imageAdjustmentsDlg", u"B", None))
         self.pbColorReset.setText(QCoreApplication.translate("imageAdjustmentsDlg", u"Reset", None))
         self.pbApply.setText(QCoreApplication.translate("imageAdjustmentsDlg", u"Apply", None))
+#if QT_CONFIG(tooltip)
+        self.pbApply.setToolTip(QCoreApplication.translate("imageAdjustmentsDlg", u"Apply to this camera", None))
+#endif // QT_CONFIG(tooltip)
+        self.pbApplyBoth.setText(QCoreApplication.translate("imageAdjustmentsDlg", u"Apply to both cameras", None))
         self.pbCancel.setText(QCoreApplication.translate("imageAdjustmentsDlg", u"Cancel", None))
     # retranslateUi
 

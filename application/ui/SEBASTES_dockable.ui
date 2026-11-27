@@ -2253,13 +2253,13 @@ frame</string>
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Link Target&#9;Home</string>
+    <string>Link Target</string>
    </property>
    <property name="iconText">
     <string>Link</string>
    </property>
    <property name="toolTip">
-    <string>Link the same fish across frames (Home). Esc cancels.</string>
+    <string>Link the same fish across frames (Shift+X or Home). Esc cancels.</string>
    </property>
   </action>
   <action name="delLinkBtn">

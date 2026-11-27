@@ -47,6 +47,14 @@ def strtobool(val):
     return str(val).lower() in ('y', 'yes', 't', 'true', 'on', '1')
 
 
+class CameraPanelWindow(QMainWindow):
+    dockRequested = Signal()
+
+    def closeEvent(self, event):
+        self.dockRequested.emit()
+        event.accept()
+
+
 class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def __init__(self, parent=None):
@@ -54,6 +62,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.setupUi(self)
         self.setupToolBar()
         self.setupStatusBar()
+        self.cameraViewStates={}
+        self.zoomBtn=0
+        self.setupCameraPanel()
 
         self.__leftDirScanned = False
         self.__rightDirScanned = False
@@ -193,27 +204,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             cnt+=1
         self.pressTime=QElapsedTimer()
         self.pressTime.start()
-        # the keys 1 to 9 select a species button (typing a digit in a text box is not taken: the box handles it first)
-        self.speciesKeys=[]
-        for number in range(1, 10):
-            key=QShortcut(QKeySequence(str(number)), self)
-            key.setAutoRepeat(False)
-            key.activated.connect(lambda number=number: self.selectSpeciesByKey(number))
-            self.speciesKeys.append(key)
-        # Space plays and pauses. It is a QShortcut and not the shortcut of the button: QAbstractButton.setText replaces the
-        # shortcut of a button (with its mnemonic), and the text of Play changes. A disabled Play must not take the key.
-        self.playKey=QShortcut(QKeySequence(Qt.Key.Key_Space), self)
-        self.playKey.setAutoRepeat(False)
-        self.playKey.activated.connect(self.playBtn.click)
-        self.undoMarkKey=QShortcut(QKeySequence('Ctrl+Z'), self)
-        self.undoMarkKey.setAutoRepeat(False)
-        self.undoMarkKey.setEnabled(False)
-        self.undoMarkKey.activated.connect(self.undoLastMark)
-        self.recordBtn.toggled.connect(self.undoMarkKey.setEnabled)
+        self.playKey=self.setupCameraShortcuts(self)
+        self.detachedPlayKey=self.setupCameraShortcuts(self.cameraWindow)
         # a key that is held down must not toggle again and again: the single-key actions and the ones that open a window act once
-        for action in [self.recordBtn, self.measureBtn, self.labelCheck, self.actionLoad, self.actionShortcuts]:
+        for action in [self.recordBtn, self.measureBtn, self.linkBtn, self.labelCheck, self.actionLoad, self.actionShortcuts]:
             action.setAutoRepeat(False)
-        self.playKey.setEnabled(self.playBtn.isEnabled())
         self.playBtn.installEventFilter(self)
         
         self.recomputeBtn.triggered.connect(self.recompute3D)
@@ -223,7 +218,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.copyBtn.triggered.connect(self.copyImg)
         self.playBtn.clicked.connect(self.play)
         self.linkBtn.triggered.connect(self.toggleLink)
-        self.linkBtn.setShortcut(QKeySequence(Qt.Key_Home))
+        self.linkBtn.setShortcuts([QKeySequence('Shift+X'), QKeySequence(Qt.Key_Home)])
         self.delLinkBtn.triggered.connect(self.deleteLink)
         self.targetCommentBtn.triggered.connect(self.getTargetComment)
         self.frameCommentBtn.triggered.connect(self.getFrameComment)
@@ -315,8 +310,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         self.adjLeftBtn.clicked.connect(self.showAdjustmentsDialog)
         self.adjRightBtn.clicked.connect(self.showAdjustmentsDialog)
+        self.gvLeft.adjustmentDialog.applyToBothCameras.connect(self.gvRight.imageAdjusted)
+        self.gvRight.adjustmentDialog.applyToBothCameras.connect(self.gvLeft.imageAdjusted)
 
         for obj in [self.gvLeft, self.gvRight]:
+            obj.adjustmentDialog.pbApplyBoth.show()
             #signals
             obj.mousePress.connect(self.imageClick)
             obj.mouseRelease.connect(self.imageUnClick)
@@ -335,6 +333,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # Space pans while recording; hidden scroll bars leave more room for the images.
             obj.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             obj.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            obj.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         # the welcome page opens a deployment, from its button or from the list of the last ones
         self.welcomePage.openRequested.connect(self.actionLoad.trigger)
         self.welcomePage.recentRequested.connect(self.loadDeployment)
@@ -453,11 +452,106 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the second row of the navigation bar gives up controls when the window is narrow: see fitNavBar
         self.showWelcome()
         self.spacePanActive=False
-        self.recordBtn.toggled.connect(lambda checked: self.stopSpacePan() if not checked else None)
+        self.spaceViewingAction=None
+        self.recordBtn.toggled.connect(self.stopSpacePan)
         # Observe releases and focus changes even if the pointer moves to the other image or a control.
         QApplication.instance().installEventFilter(self)
 
     ######################0. WINDOW LAYOUT################################
+
+    def setupCameraPanel(self):
+        self.cameraWindow=CameraPanelWindow(self, Qt.WindowType.Window)
+        self.cameraWindow.setWindowTitle('SEBASTES — Camera views')
+        self.cameraWindow.dockRequested.connect(self.dockCameras)
+        for action in (self.recordBtn, self.measureBtn, self.linkBtn, self.labelCheck,
+                       self.actionShortcuts, self.actionLoad, self.actionExit):
+            self.cameraWindow.addAction(action)
+
+        self.cameraPanelAction=QAction('Detach camera panel', self)
+        self.cameraPanelAction.triggered.connect(self.toggleCameraPanel)
+        self.menuView.addAction(self.cameraPanelAction)
+        self.detachedCameraPage=QWidget()
+        layout=QVBoxLayout(self.detachedCameraPage)
+        layout.addStretch()
+        layout.addWidget(QLabel('The camera views are in a separate window.'), alignment=Qt.AlignmentFlag.AlignHCenter)
+        attachButton=QPushButton('Dock camera panel')
+        attachButton.clicked.connect(self.dockCameras)
+        layout.addWidget(attachButton, alignment=Qt.AlignmentFlag.AlignHCenter)
+        layout.addStretch()
+        self.imageStack.addWidget(self.detachedCameraPage)
+
+        cameraStatusBar=self.cameraWindow.statusBar()
+        self.cameraFrameStatus=QLabel()
+        cameraStatusBar.addPermanentWidget(self.cameraFrameStatus)
+        self.statusBar.messageChanged.connect(cameraStatusBar.showMessage)
+        self.cameraResizeTimer=QTimer(self)
+        self.cameraResizeTimer.setSingleShot(True)
+        self.cameraResizeTimer.timeout.connect(lambda: self.fitCameraViews(onlyUnzoomed=True))
+
+    def setupCameraShortcuts(self, window):
+        # Keep the shortcuts local to each window so that text fields retain normal typing and undo.
+        for number in range(1, 10):
+            speciesKey=QShortcut(QKeySequence(str(number)), window)
+            speciesKey.setAutoRepeat(False)
+            speciesKey.activated.connect(lambda number=number: self.selectSpeciesByKey(number))
+        playKey=QShortcut(QKeySequence(Qt.Key.Key_Space), window)
+        playKey.setAutoRepeat(False)
+        playKey.setEnabled(self.playBtn.isEnabled())
+        playKey.activated.connect(self.playBtn.click)
+        undoKey=QShortcut(QKeySequence('Ctrl+Z'), window)
+        undoKey.setAutoRepeat(False)
+        undoKey.setEnabled(self.recordBtn.isChecked())
+        undoKey.activated.connect(self.undoLastMark)
+        self.recordBtn.toggled.connect(undoKey.setEnabled)
+        if window is self.cameraWindow:
+            # Frame navigation also works when the detached window itself has focus.
+            for key, direction in (('Left', -1), ('Right', 1)):
+                for prefix, oneFrame in (('', False), ('Ctrl+', True)):
+                    navigationKey=QShortcut(QKeySequence(prefix+key), window)
+                    navigationKey.activated.connect(lambda d=direction, single=oneFrame: self.stepFrame(d, single))
+        return playKey
+
+    def toggleCameraPanel(self):
+        if self.cameraWindow.centralWidget() is self.viewPage:
+            self.dockCameras()
+            return
+        if self.noLoad:
+            return
+
+        self.imageStack.setCurrentWidget(self.detachedCameraPage)
+        self.imageStack.removeWidget(self.viewPage)
+        self.cameraWindow.setCentralWidget(self.viewPage)
+        mainScreen=self.screen()
+        screen=next((screen for screen in QGuiApplication.screens() if screen!=mainScreen), mainScreen)
+        if screen is not None:
+            self.cameraWindow.setScreen(screen)
+            bounds=screen.availableGeometry()
+            size=QSize(round(bounds.width()*0.85), round(bounds.height()*0.8))
+            geometry=QRect(QPoint(), size)
+            geometry.moveCenter(bounds.center())
+            self.cameraWindow.setGeometry(geometry)
+        self.cameraPanelAction.setText('Dock camera panel')
+        self.updateDetachedCameraStatus()
+        self.cameraWindow.showNormal()
+        self.viewPage.show()
+        self.cameraResizeTimer.start(0)
+        self.cameraWindow.activateWindow()
+        (self.gvLeft if not self.frameLeft.isHidden() else self.gvRight).setFocus()
+
+    def dockCameras(self):
+        if self.cameraWindow.centralWidget() is not self.viewPage:
+            return
+        self.cameraWindow.hide()
+        self.cameraWindow.takeCentralWidget()
+        self.imageStack.insertWidget(0, self.viewPage)
+        self.cameraPanelAction.setText('Detach camera panel')
+        if not self.noLoad:
+            self.showViews()
+            self.cameraResizeTimer.start(0)
+
+    def updateDetachedCameraStatus(self):
+        if self.cameraWindow.centralWidget() is self.viewPage:
+            self.cameraFrameStatus.setText(f'{self.modeLabel.text()}   ·   Frame {self.frameText()}')
 
     def keepOnScreen(self):
         '''
@@ -626,6 +720,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.modeLabel.setStyleSheet('')
         self.modeLabel.setText(text)
         self.annotatorBox.setVisible(recording)
+        self.updateDetachedCameraStatus()
 
     def updateDeploymentLabel(self):
         '''
@@ -711,26 +806,47 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         if eventType in (QEvent.Type.ShortcutOverride, QEvent.Type.KeyPress, QEvent.Type.KeyRelease):
             if event.key() == Qt.Key_Space:
                 imageFocus=isinstance(obj, QWidget) and any(view is obj or view.isAncestorOf(obj) for view in views)
-                if eventType == QEvent.Type.KeyRelease and getattr(self, 'spacePanActive', False):
+                if eventType == QEvent.Type.KeyRelease and (self.spacePanActive or self.spaceViewingAction is not None):
                     if not event.isAutoRepeat():
+                        play=self.spaceViewingAction=='play'
                         self.stopSpacePan()
+                        if play:
+                            self.playBtn.click()
                     event.accept()
                     return True
-                if (imageFocus and not self.noLoad and self.recordBtn.isChecked()
+                if (imageFocus and not self.noLoad
                         and not event.modifiers() & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)):
                     if eventType == QEvent.Type.KeyPress and not event.isAutoRepeat():
-                        self.spacePanActive=True
-                        for view in views:
-                            view.setPanKeyDown(Qt.Key_Space, True)
+                        if self.recordBtn.isChecked():
+                            self.spacePanActive=True
+                            for view in views:
+                                view.setPanKeyDown(Qt.Key_Space, True)
+                        else:
+                            # A tap plays on release, leaving time to recognize a double-click fit gesture.
+                            self.spaceViewingAction='play'
                     event.accept()
                     return True
-        elif eventType == QEvent.Type.FocusIn and getattr(self, 'spacePanActive', False):
+        elif (eventType in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick) and event.button() == Qt.LeftButton
+                and (self.spacePanActive or self.spaceViewingAction is not None)):
+            for view in views:
+                if obj is view.viewport():
+                    if eventType == QEvent.Type.MouseButtonDblClick:
+                        if self.spaceViewingAction is not None:
+                            self.spaceViewingAction='fit'
+                        self.fitCameraViews()
+                    elif self.spacePanActive:
+                        break  # let the viewer start a pan drag
+                    view.suppressPanRelease=True
+                    event.accept()
+                    return True
+        elif eventType == QEvent.Type.FocusIn and (self.spacePanActive or self.spaceViewingAction is not None):
             if isinstance(obj, QWidget) and any(view is obj or view.isAncestorOf(obj) for view in views):
-                for view in views:
-                    view.setPanKeyDown(Qt.Key_Space, True)
+                if self.spacePanActive:
+                    for view in views:
+                        view.setPanKeyDown(Qt.Key_Space, True)
             else:
                 self.stopSpacePan()
-        elif obj is self and eventType == QEvent.Type.WindowDeactivate:
+        elif obj in (self, self.cameraWindow) and eventType == QEvent.Type.WindowDeactivate:
             self.stopSpacePan()
             for view in views:
                 view.cancelPan()
@@ -739,10 +855,14 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.fitNavBar()
         elif obj is self.playBtn and event.type()==QEvent.Type.EnabledChange:
             self.playKey.setEnabled(self.playBtn.isEnabled())
+            self.detachedPlayKey.setEnabled(self.playBtn.isEnabled())
+        elif obj in views and eventType==QEvent.Type.Resize:
+            self.cameraResizeTimer.start(0)
         return QMainWindow.eventFilter(self, obj, event)
 
     def stopSpacePan(self):
         self.spacePanActive=False
+        self.spaceViewingAction=None
         for view in (self.gvLeft, self.gvRight):
             view.setPanKeyDown(Qt.Key_Space, False)
 
@@ -810,6 +930,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         showWelcome shows the welcome page in place of the images and the playback bar. It is what SEBASTES looks like
         until a deployment is loaded.
         '''
+        self.dockCameras()
+        self.cameraPanelAction.setEnabled(False)
         self.welcomePage.setRecent(self.recentDeployments())
         self.imageStack.setCurrentWidget(self.welcomePage)
         self.navBar.hide()
@@ -818,7 +940,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         '''
         showViews shows the two images and the playback bar, in the size they have to fill, in place of the welcome page.
         '''
-        self.imageStack.setCurrentWidget(self.viewPage)
+        page=self.detachedCameraPage if self.cameraWindow.centralWidget() is self.viewPage else self.viewPage
+        self.imageStack.setCurrentWidget(page)
+        self.cameraPanelAction.setEnabled(True)
         self.navBar.show()
         self.centralWidget().layout().activate()
 
@@ -1491,6 +1615,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.stopSpacePan()
         self.stopPlay()
         self.clearMeasureChip()
+        for viewer in (self.gvLeft, self.gvRight):
+            if viewer.adjustmentDialog.isVisible():
+                viewer.adjustmentDialog.reject()
         if self.dataDB is not None:
             self.writeFrameData()
             self.dataDB.dbClose()
@@ -1832,8 +1959,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         try:
             self.updateDeploymentLabel()
             # clear out gv transform
-            self.gvRight.resetTransform()
-            self.gvLeft.resetTransform()
+            self.cameraViewStates.clear()
+            self.gvRight.resetView()
+            self.gvLeft.resetView()
             # apply mask, if desired
             if self.doMask:
                 val=self.settings['SubsampleMask']
@@ -1982,7 +2110,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             else:
                 self.imageSlider.setValue(self.imageSlider.minimum())
             self.playBtn.setEnabled(True)
-            self.measurementsDock.setDeployment(self.dataDB, self.deployment)
+            self.measurementsDock.setDeployment(self.dataDB, self.deployment, self.speciesList)
             if self.measurementsDock.isHidden():
                 self.measurementsDock.show()
                 if not self.layoutRestored:
@@ -2125,23 +2253,25 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
     def showAdjustmentsDialog(self):
         if self.sender()==self.adjLeftBtn:
-            gv=self.gvLeft
-            self.leftAdjustmentParms = gv.image.getParameters()
-            gv.adjustmentDialog.setState(self.leftAdjustmentParms)
+            viewer, other = self.gvLeft, self.gvRight
         else:
-            gv=self.gvRight
-            self.rightAdjustmentParms = gv.image.getParameters()
-            gv.adjustmentDialog.setState(self.rightAdjustmentParms)
-        gv.adjustmentDialog.show()
+            viewer, other = self.gvRight, self.gvLeft
+        if viewer.adjustmentDialog.isVisible():
+            viewer.adjustmentDialog.raise_()
+            viewer.adjustmentDialog.activateWindow()
+            return
+        if other.adjustmentDialog.isVisible():
+            other.adjustmentDialog.reject()
+        viewer.showAdjustmentsDialog()
 
-    def resizeEvent(self, event):
-
-        #  Scale the image to fill the the image widget when we resize.
-        #  This is a bit heavy handed, it will reset the zoom on resize,
-        #  but we want the image to scale when we resize and dealing with
-        #  the details of resizing when zoomed is a headache.
-        self.gvLeft.fillExtent()
-        self.gvRight.fillExtent()
+    def fitCameraViews(self, onlyUnzoomed=False):
+        if not onlyUnzoomed:
+            self.cameraViewStates.clear()
+            self.zoomBtn=0
+        for view in (self.gvLeft, self.gvRight):
+            if not view.imgPixmap.isNull() and (not onlyUnzoomed or view.zoomLevel == 0):
+                view.fillExtent()
+                view.centerOnPoint(view.sceneRect().center())
 
     def __changeImage(self):
         '''
@@ -2154,6 +2284,9 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             # no deployment (an old row of the Measurements panel, a slider that is still moving): there are no images to read
             return
         try:
+            for view in (self.gvLeft, self.gvRight):
+                if not view.imgPixmap.isNull():
+                    self.cameraViewStates[view]=view.viewState()
             #  tell the fetchers to send us an new/adjusted image
             if self.recordBtn.isChecked():
                 self.deSelect()
@@ -2178,11 +2311,11 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 return
             currentFrame=self.leftImageFrames[self.imageSlider.value()]
             self.frameBox.setText(str(currentFrame))
+            self.updateDetachedCameraStatus()
             self.updateTimeLabel(currentFrame)
             
             if self.measureBtn.isChecked():
                     self.measureBtn.setChecked(False)
-            self.zoomBtn=0
             self.updateLinkDisplay()
             if self.recordBtn.isChecked():
                 self.reloadData()
@@ -2250,8 +2383,12 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 gvObj.setImageFromCvImage(image)
             else:
                 gvObj.setImageFromFile(imgFileLoc)
-            gvObj.resetView()
-            gvObj.fillExtent()
+            state=self.cameraViewStates.get(gvObj)
+            if state is None:
+                gvObj.fillExtent()
+                gvObj.centerOnPoint(gvObj.sceneRect().center())
+            else:
+                gvObj.restoreViewState(state)
             self.activeMark[gvObj]=None
             self.mouseInWidget(self.mousebits[0], self.mousebits[1], self.mousebits[2])
             return imgFileLoc
@@ -2408,7 +2545,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
 
         elif (ev.key() == Qt.Key_Home):
             # linking targets is part of recording: outside Record the marks are read only
-            if self.recordBtn.isChecked():
+            if self.recordBtn.isChecked() and not ev.isAutoRepeat():
                 self.linkBtn.trigger()
 
         # navigate though images
@@ -2653,6 +2790,19 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         self.updateEpipolar()
 
     def handleImageClick(self, imageObj, clickLoc, button, currentKbKey, item):
+        if self.noLoad:
+            return
+        if not self.recordBtn.isChecked():
+            if button==Qt.MouseButton.RightButton:
+                frame=int(self.frameText())
+                target=next((self.pointMarks[mark][0] for mark in item if mark in self.pointMarks), None)
+                if target is not None:
+                    self.showMeasurement(frame, target)
+                elif self.annotationFocus is not None:
+                    self.annotationFocus=None
+                    self.showAnnotations()
+                self.measurementsDock.selectTarget(frame, target)
+            return
         shiftClick=QGuiApplication.queryKeyboardModifiers()==Qt.ShiftModifier
         # In link mode a normal click on an existing mark selects it.
         if self.linkBtn.isChecked() and not self.fishStep and not self.pairPoints:
@@ -2706,7 +2856,13 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 if self.showDataCheck.isChecked():
                     self.selectValueFromImage()# this is to send delection signal to data view window and select the appropriate row
                 if item in self.pointMarks:
-                    self.pickLinkTarget(int(self.frameText()), self.currentTarget)
+                    frame=int(self.frameText())
+                    self.pickLinkTarget(frame, self.currentTarget)
+                    self.measurementsDock.selectTarget(frame, self.currentTarget)
+                else:
+                    self.measurementsDock.selectTarget(None, None)
+            else:
+                self.measurementsDock.selectTarget(None, None)
         else:
             try:
                 if self.fishGuideActive() and imageObj!=self.fishImage():
@@ -3260,7 +3416,8 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.measurementsDock.refresh()
             return name
         default=self.defaultMeasurementName(target, label)
-        name, ok=QInputDialog.getText(self, 'Observation ID', 'Observation ID for this measurement:', QLineEdit.EchoMode.Normal, default)
+        name, ok=QInputDialog.getText(self.viewPage.window(), 'Observation ID', 'Observation ID for this measurement:',
+                                     QLineEdit.EchoMode.Normal, default)
         name=name.strip() if ok and name.strip() else default
         self.dataDB.dbExec("UPDATE lines SET name='"+sqlQuote(name)+"' WHERE deployment_id='"+sqlQuote(self.deployment)+"' AND frame_number="+
             self.frameText()+" AND target_number="+str(target)+" AND line_label='"+label+"'")
@@ -3811,7 +3968,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
         # the guide and the hints were worked out (by the toggled signal of Record) before the state above was reset
         self.updateFishGuide()
         self.updateEpipolar()
-        self.resizeEvent(None)
+        self.fitCameraViews()
 
 
     def toggleTraining(self):
@@ -3918,11 +4075,25 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.statusBar.showMessage('Finish marking, or press Esc, before linking fish.', 4000)
             return
         targets={target for target, _ in self.pointMarks.values()}
-        sourceTarget=self.currentTarget
-        if sourceTarget not in targets:
-            # Returning to a frame clears the selection. A single fish is an unambiguous source.
-            sourceTarget=next(iter(targets)) if len(targets)==1 else None
-        self.linkData=[int(self.frameText()), sourceTarget] if sourceTarget is not None else []
+        frame=int(self.frameText())
+        # A selected marker takes precedence over the automatically chosen source.
+        sourceTarget=next((self.pointMarks[mark][0] for mark in self.__selectedItems if mark in self.pointMarks), None)
+        if sourceTarget is None and len(targets)==1:
+            sourceTarget=next(iter(targets))
+        if sourceTarget is None and targets:
+            species=next((button.text() for button in self.spcButtons if button.isChecked()), None)
+            if species:
+                query=dbConnection.execute(self.dataDB.db, """
+                    SELECT target_number FROM targets
+                    WHERE deployment_id=? AND frame_number=? AND species_group=?
+                    ORDER BY time_stamp DESC, target_number DESC
+                    """, (self.deployment, frame, species))
+                while query.next():
+                    candidate=int(query.value(0))
+                    if candidate in targets:
+                        sourceTarget=candidate
+                        break
+        self.linkData=[frame, sourceTarget] if sourceTarget is not None else []
         self.updateLinkDisplay()
 
     def linkFromTable(self, frame, target):
@@ -4107,7 +4278,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
                 for imageObj, x, y in [(self.gvLeft, LX, LY), (self.gvRight, RX, RY)]:
                     if x==None:
                         continue
-                    marker=imageObj.addMark(QPointF(float(x), float(y)), style=style, color=col, size=1.0, thickness=1.0, alpha=alpha, selectable=False)
+                    marker=imageObj.addMark(QPointF(float(x), float(y)), style=style, color=col, size=1.0, thickness=1.0, alpha=alpha)
                     self.pointMarks.update({marker:[target, imageObj]})
                     marker.addLabel(str(target)+spcLabel, color=col, alpha=alpha, size=size, offset=self.textOffset, name='tnumber')
             query2=self.dataDB.dbQuery("SELECT line_label, LX1, LY1, LX2, LY2, RX1, RY1, RX2, RY2 FROM lines WHERE frame_number="+frame+
@@ -4407,7 +4578,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
     def changeActiveTarget(self,  target,  frame,  zoom):
         if int(frame)!=self.imageSlider.value():
             self.imageSlider.setValue(int(frame))
-            self.resizeEvent(None)
+            self.fitCameraViews()
         for items in self.__selectedItems:
             items.setSelected(False)
         self.__selectedItems=[]
@@ -4828,9 +4999,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             filename=str(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.activeProject+'_'+ self.deployment+'_frame_metadata.csv')
             db_df.to_csv(filename, index=False)
             # write out image adjustments as well
-            self.leftAdjustmentParms=self.gvLeft.adjustmentDialog.getState()
-            self.rightAdjustmentParms=self.gvRight.adjustmentDialog.getState()
-            imageadjustments={'left':self.leftAdjustmentParms, 'right':self.rightAdjustmentParms}
+            imageadjustments={'left':self.gvLeft.image.getParameters(), 'right':self.gvRight.image.getParameters()}
             ny.save(self.sourcePath.path() + '/' + self.deployment + '/' + "data" + '/' + self.deployment+'_image_adjustments', imageadjustments)
         except:
             self.showError()
@@ -4845,6 +5014,7 @@ class SEBASTES(QMainWindow, ui_SEBASTES_dockable.Ui_SEBASTES):
             self.showError()
             
     def closeEvent(self, event):
+        self.dockCameras()
         self.closeup.hide()
         if (self.datadlg):
             try:

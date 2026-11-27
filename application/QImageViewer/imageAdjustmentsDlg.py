@@ -7,6 +7,7 @@ from .ui import ui_imageAdjustmentsDlg
 class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg):
 
     imageAdjustments = Signal(object)
+    applyToBothCameras = Signal(object)
 
     def __init__(self, cameraName=None, parent=None):
         #  initialize the GUI
@@ -41,8 +42,10 @@ class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg
         self.blueSlider.valueChanged[int].connect(self.stateChanged)
 
         #  set up the apply/cancel signals
-        self.pbCancel.clicked.connect(self.cancelClicked)
+        self.pbCancel.clicked.connect(self.reject)
         self.pbApply.clicked.connect(self.applyClicked)
+        self.pbApplyBoth.clicked.connect(lambda: self.applyClicked(both=True))
+        self.pbApplyBoth.hide()  # Only enabled by a window with two cameras.
 
         #  set the initial GUI state
         self.setBCMode()
@@ -86,10 +89,15 @@ class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg
         self.setWindowTitle("Image Adjustments:" + name)
 
 
-    def applyClicked(self):
+    def applyClicked(self, both=False):
         """
         applyClicked is called when the apply button is pressed.
         """
+        state = self.getState()
+        self.imageAdjustments.emit(state)
+        if both:
+            self.applyToBothCameras.emit(state)
+        self.initialState = None
         self.accept()
 
 
@@ -152,7 +160,7 @@ class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg
         """
 
         #  save the initial state so if the user cancels the dialog we can restore it
-        self.initialState = self.getState()
+        self.initialState = state.copy()
 
         self.updatingState = True
 
@@ -175,9 +183,6 @@ class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg
         self.setCCMode()
 
         self.updatingState = False
-
-        #  and emit our state signal
-        self.stateChanged()
 
 
     def getState(self):
@@ -209,13 +214,12 @@ class imageAdjustmentsDlg(QDialog, ui_imageAdjustmentsDlg.Ui_imageAdjustmentsDlg
         return state
 
 
-    def cancelClicked(self):
-        #  restore the initial state of the dialog, this will also cause the imageAdjustments
-        #  signal to be emitted which should restore the state of the image
-
-        if (self.initialState):
-            self.setState(self.initialState)
-        self.reject()
+    def reject(self):
+        # Cancel, Escape and the window close button all roll back the preview.
+        if self.initialState is not None:
+            self.imageAdjustments.emit(self.initialState)
+            self.initialState = None
+        super().reject()
 
 
 if __name__ == "__main__":

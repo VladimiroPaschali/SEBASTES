@@ -12,9 +12,8 @@ from PySide6.QtWidgets import *
 
 
 def shortcutText(widget):
-    #  the shortcut of an action or of a QShortcut as the user reads it, '' when it has none
-    sequence = widget.key() if isinstance(widget, QShortcut) else widget.shortcut()
-    return sequence.toString(QKeySequence.SequenceFormat.NativeText)
+    sequences = [widget.key()] if isinstance(widget, QShortcut) else widget.shortcuts()
+    return ' / '.join(sequence.toString(QKeySequence.SequenceFormat.NativeText) for sequence in sequences)
 
 
 def shortcutGroups(window):
@@ -35,6 +34,7 @@ def shortcutGroups(window):
             ('Wheel', 'Zoom in or out around the selected target, in both images'),
             ('Ctrl+Wheel', 'Zoom in or out around the pointer, in the image under it'),
             ('Space+Drag', 'While recording: hold Space to pan a zoomed image without marking fish'),
+            ('Space+Double-click', 'Fit both camera images to their windows'),
             (shortcutText(window.labelCheck), 'Show or hide the labels'),
             (shortcutText(window.actionShortcuts), 'This window'),
             (shortcutText(window.actionExit), 'Exit SEBASTES'),
@@ -56,7 +56,7 @@ def shortcutGroups(window):
         ('Editing (while recording)', [
             ('Right-click', 'Select a mark and its pair in the other image'),
             ('Delete', 'Delete the selected mark and its data'),
-            ('Home', 'Link the same fish across any two frames. Choose a fish in Measurements or on the image. Esc cancels.'),
+            (shortcutText(window.linkBtn), 'Link the same fish across any two frames. Choose a fish in Measurements or on the image. Esc cancels.'),
             ('Double-click', 'Species button: choose another species for the button'),
             ('Double-click / F2', 'Measurements panel: rename the measurement'),
         ]),

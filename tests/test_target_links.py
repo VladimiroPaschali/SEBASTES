@@ -7,7 +7,8 @@ import targetlinks
 from dbConnection import execute
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from measurementsdock import FRAME, NAME
+from PySide6.QtWidgets import QMessageBox
+from measurementsdock import FRAME, NAME, SPECIES
 
 
 class TargetLinkTests(unittest.TestCase):
@@ -78,13 +79,34 @@ class TargetLinkTests(unittest.TestCase):
         with patch.object(window, 'writeFrameData'), patch.object(window, 'readImage'), patch.object(window, 'reloadData'):
             self.dock.rowClicked(1, FRAME)
         self.assertFalse(window.linkBtn.isChecked())
-        self.assertEqual(table.item(1, table.columnCount()-1).text(), '0 / 1')
+        self.assertEqual(self.rows('SELECT target_link_frame, target_link FROM targets WHERE frame_number=20'), [(0, 1)])
         table.item(1, NAME).setText('Renamed')
         self.assertEqual(self.rows('SELECT name FROM lines'), [('Renamed',), ('Renamed',)])
         self.assertEqual(table.item(0, NAME).text(), 'Renamed')
         with patch.object(fixture.main.QInputDialog, 'getText', side_effect=AssertionError('Asked for a linked name')):
             name = fixture.main.SEBASTES.nameMeasurement(window, 3, 'length')
             self.assertEqual(name, 'Renamed')
+
+    def test_species_warning_is_updated_when_link_copies_an_id(self):
+        self.add_fish(0, 1, 'Salpa 1')
+        self.add_fish(1, 1, 'sargus 1')
+        execute(self.db, "UPDATE targets SET species_group='salpa' WHERE frame_number=0")
+        execute(self.db, "UPDATE targets SET species_group='Sargus' WHERE frame_number=1")
+        self.dock.refresh()
+        table = self.dock.table
+        self.assertTrue(table.item(0, SPECIES).icon().isNull())
+        self.assertTrue(table.item(1, SPECIES).icon().isNull())
+
+        targetlinks.link(self.db, self.dep, (0, 1), (1, 1))
+        self.dock.refresh()
+        self.assertTrue(table.item(0, SPECIES).icon().isNull())
+        mismatch = table.item(1, SPECIES)
+        self.assertFalse(mismatch.icon().isNull())
+        self.assertIn('Sargus', mismatch.toolTip())
+        self.assertIn('Salpa 1', mismatch.toolTip())
+
+        table.item(1, NAME).setText('Dive 1')
+        self.assertTrue(table.item(1, SPECIES).icon().isNull())
 
     def test_new_point_links_after_jump_and_escape_cancels(self):
         window = self.window
@@ -124,6 +146,57 @@ class TargetLinkTests(unittest.TestCase):
         self.assertEqual(self.rows('SELECT frame_number,name FROM lines ORDER BY frame_number'), [(0,'sargus 1'), (99,'sargus 1')])
         self.assertEqual(self.rows('SELECT target_link_frame,target_link FROM targets WHERE frame_number=99'), [(0,3)])
 
+    def test_link_uses_latest_fish_of_active_species_unless_a_source_is_selected(self):
+        window = self.window
+        first, second = window.spcButtons[:2]
+        second.setText('Other fish')
+        second.setStyleSheet('background-color: rgb(0, 255, 0);')
+        window.speciesList.append(second.text())
+        window.spcColors.append([0, 255, 0])
+        window.linkBtn.setEnabled(True)
+        self.click(x=40)
+        self.click(x=70)
+        first.setChecked(False)
+        second.setChecked(True)
+        self.click(x=100)
+        second.setChecked(False)
+        first.setChecked(True)
+        execute(self.db, "UPDATE targets SET time_stamp = '2026-11-01 10:00:00'")
+
+        window.showMeasurement(0, 1)
+        window.linkBtn.trigger()
+        self.assertEqual(window.linkData, [0, 1])
+        window.linkBtn.trigger()
+
+        with patch.object(window, 'writeFrameData'), patch.object(window, 'readImage'):
+            window.goToIndex(1)
+            window.goToIndex(0)
+            window.linkBtn.trigger()
+            self.assertEqual(window.linkData, [0, 2])
+            window.goToIndex(1)
+        self.click()
+        self.assertEqual(self.rows('SELECT target_link_frame, target_link FROM targets WHERE frame_number=1'), [(0, 2)])
+
+    def test_deleted_observation_id_is_reused_after_all_its_observations_are_gone(self):
+        for number in range(1, 12):
+            self.add_fish(0, number, f'sargus {number}')
+        execute(self.db, "INSERT INTO targets(deployment_id, frame_number, target_number) VALUES(?, 1, 1)", (self.dep,))
+        execute(self.db, "UPDATE targets SET species_group='sargus'")
+        targetlinks.link(self.db, self.dep, (0, 10), (1, 1))
+
+        def proposed_id():
+            return targetlinks.next_name(self.db, self.dep, (0, 1))
+
+        self.assertEqual(proposed_id(), 'sargus 12')
+        rowid, = self.rows("SELECT rowid FROM lines WHERE name='sargus 10'")[0]
+        with patch.object(QMessageBox, 'question', return_value=QMessageBox.Yes):
+            self.window.deleteMeasurements([rowid])
+        self.assertEqual(proposed_id(), 'sargus 12')
+
+        targetlinks.delete_target(self.window.dataDB, self.dep, (1, 1))
+        self.assertEqual(proposed_id(), 'sargus 10')
+        self.assertEqual(self.rows("SELECT name FROM lines WHERE target_number=11"), [('sargus 11',)])
+
     def test_link_can_start_after_returning_to_the_only_fish_in_a_frame(self):
         window = self.window
         window.leftImageFrames = [1, 2]
@@ -136,7 +209,13 @@ class TargetLinkTests(unittest.TestCase):
             with patch.object(window, 'writeFrameData'), patch.object(window, 'readImage'):
                 window.goToIndex(1)
                 window.goToIndex(0)
-                window.linkBtn.trigger()
+                window.showViews()
+                window.show()
+                window.activateWindow()
+                window.gvLeft.setFocus()
+                self.fixture.app.processEvents()
+                QTest.keyClick(window.gvLeft, Qt.Key_X, Qt.ShiftModifier)
+                self.assertEqual(window.linkData, [1, 1])
                 window.goToIndex(1)
             window.computeMatchBox.setChecked(False)
             self.click(shift=True)

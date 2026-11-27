@@ -1,6 +1,7 @@
 """Exercise real image-click handlers and Ctrl+Z against isolated databases."""
 import os
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
@@ -380,12 +381,79 @@ class AnnotationUndoTests(unittest.TestCase):
         self.window.recordBtn.setChecked(False)
         self.window.playBtn.setEnabled(True)
         activations = []
-        self.window.playKey.activated.disconnect()
-        self.window.playKey.activated.connect(lambda: activations.append(True))
+        self.window.playBtn.clicked.connect(lambda: activations.append(self.window.playBtn.isChecked()))
         self.fixture.app.processEvents()
         QTest.keyClick(view, Qt.Key_Space)
         self.assertEqual(activations, [True])
         self.assertFalse(view.panning)
+        self.window.stopPlay()
+
+    def test_navigation_preserves_each_camera_view_even_after_a_missing_frame(self):
+        window = self.window
+        window.videoMode = True
+        window.LPath, window.RPath = 'left/', 'right/'
+        window.leftImageDict = {0: (None, 'left.mp4'), 1: (None, 'left.mp4')}
+        window.rightImageDict = {0: (None, 'right.mp4'), 1: (None, 'right.mp4')}
+        window.videoSources = {
+            path: SimpleNamespace(fps=30, getFrame=lambda frame: np.full((200, 300, 3), frame, dtype=np.uint8))
+            for path in (window.LPath, window.RPath)
+        }
+        left, _ = self.preparePan()
+        right, _ = self.preparePan(right=True)
+        left.centerOnPoint(QPointF(105, 75))
+        right.centerOnPoint(QPointF(205, 130))
+        expected = {view: view.viewState() for view in (left, right)}
+
+        def assertSameView(view):
+            transform, center, zoom = view.viewState()
+            savedTransform, savedCenter, savedZoom = expected[view]
+            self.assertEqual((transform, zoom), (savedTransform, savedZoom))
+            # A layout change can resize the viewport. Qt scrolls it in whole pixels.
+            displacement = transform.map(center) - transform.map(savedCenter)
+            self.assertLessEqual(abs(displacement.x()), 1)
+            self.assertLessEqual(abs(displacement.y()), 1)
+
+        with patch.object(window, 'writeFrameData'):
+            for index in (1, 0, 1, 0):
+                window.goToIndex(index)
+                self.fixture.app.processEvents()
+                self.assertEqual(window.frameText(), str(index))
+                for view in (left, right):
+                    assertSameView(view)
+
+            del window.rightImageDict[1]
+            window.goToIndex(1)
+            self.assertTrue(right.imgPixmap.isNull())
+            window.goToIndex(0)
+            self.assertFalse(right.imgPixmap.isNull())
+            assertSameView(right)
+
+    def test_space_double_click_fits_both_cameras(self):
+        window = self.window
+        window.playBtn.setEnabled(True)
+        self.preparePan()
+        views = (window.gvLeft, window.gvRight)
+        window.fitCameraViews()
+        fitted = [view.viewportTransform() for view in views]
+        for recording in (True, False):
+            window.recordBtn.setChecked(recording)
+            for view in views:
+                with self.subTest(recording=recording, camera=view.name):
+                    for camera in views:
+                        camera.zoomToPoint(QPointF(100, 80), 12)
+                    self.assertNotEqual([camera.viewportTransform() for camera in views], fitted)
+                    view.setFocus()
+                    viewport = view.viewport()
+                    point = viewport.rect().center()
+                    QTest.keyPress(view, Qt.Key_Space)
+                    QTest.mouseClick(viewport, Qt.LeftButton, Qt.NoModifier, point)
+                    QTest.mouseDClick(viewport, Qt.LeftButton, Qt.NoModifier, point)
+                    QTest.keyRelease(view, Qt.Key_Space)
+                    QTest.mouseRelease(viewport, Qt.LeftButton, Qt.NoModifier, point)
+                    self.assertEqual([camera.viewportTransform() for camera in views], fitted)
+                    self.assertEqual([camera.zoomLevel for camera in views], [0, 0])
+                    self.assertFalse(window.playBtn.isChecked())
+                    self.assertEqual(self.count('targets'), 0)
 
     def test_alt_does_not_enable_panning(self):
         view, _ = self.preparePan()

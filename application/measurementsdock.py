@@ -9,10 +9,15 @@ from PySide6.QtWidgets import *
 from dbConnection import sqlQuote
 import targetlinks
 
-#  The columns the user reads first come first, so that the panel at its default width shows them: the name, the species
-#  and the length, then where the fish is (frame and target) and the details.
-COLUMNS = ['obs_id', 'Species', 'Length (cm)', 'Frame', 'Target', 'Measurement', 'Distance (cm)', 'e (px)', 'Linked from (frame / target)']
-NAME, SPECIES, LENGTH, FRAME, TARGET = 0, 1, 2, 3, 4
+COLUMNS = ['obs_id', 'Species', 'Length (cm)', 'Frame']
+NAME, SPECIES, LENGTH, FRAME = range(len(COLUMNS))
+ROW_ID_ROLE = Qt.ItemDataRole.UserRole
+TARGET_ROLE = ROW_ID_ROLE + 1
+MEASUREMENT_ROLE = ROW_ID_ROLE + 2
+
+
+def speciesKey(value):
+    return ' '.join(value.split()).casefold()
 
 
 class CompactHeader(QHeaderView):
@@ -50,10 +55,13 @@ class MeasurementsDock(QDockWidget):
         self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable)
         self.dataDB = None
         self.deployment = None
+        self.projectSpecies = ()
+        self.knownSpecies = {}
         self.filling = False
         self.deletionEnabled = False
 
         self.table = QTableWidget(0, len(COLUMNS))
+        self.table.setObjectName('measurementsTable')
         self.table.setHorizontalHeader(CompactHeader(self.table))
         self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.horizontalHeaderItem(NAME).setToolTip('Observation ID')
@@ -82,6 +90,23 @@ class MeasurementsDock(QDockWidget):
         content = QWidget()
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
+        filters = QHBoxLayout()
+        filters.setContentsMargins(4, 4, 4, 0)
+        self.columnFilters = []
+        for column, placeholder in enumerate(('Filter ID', 'Species', 'Length', 'Frame')):
+            field = QLineEdit()
+            field.setAccessibleName('Filter ' + COLUMNS[column])
+            field.setPlaceholderText(placeholder)
+            field.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+            field.setClearButtonEnabled(True)
+            if column in (LENGTH, FRAME):
+                field.setToolTip('Enter an exact value or a range such as 10-20.')
+            else:
+                field.setToolTip('Enter part of the ' + COLUMNS[column] + ' to filter rows.')
+            field.textChanged.connect(self.applyFilters)
+            self.columnFilters.append(field)
+            filters.addWidget(field, 1)
+        layout.addLayout(filters)
         layout.addWidget(self.table)
         buttons = QHBoxLayout()
         buttons.addStretch()
@@ -91,6 +116,7 @@ class MeasurementsDock(QDockWidget):
         buttons.addWidget(self.deleteButton)
         layout.addLayout(buttons)
         self.setWidget(content)
+        self.table.model().layoutChanged.connect(self.applyFilters)
         self.updateDeleteAction()
 
 
@@ -100,7 +126,7 @@ class MeasurementsDock(QDockWidget):
 
 
     def updateDeleteAction(self):
-        count = len(self.table.selectionModel().selectedRows())
+        count = len(self.visibleSelectedRows())
         enabled = self.deletionEnabled and self.dataDB is not None
         self.deleteAction.setEnabled(enabled and count > 0)
         self.deleteAction.setText('Delete measurements' if count > 1 else 'Delete measurement')
@@ -108,14 +134,72 @@ class MeasurementsDock(QDockWidget):
 
     def requestLink(self):
         if self.linkAction.isEnabled():
-            row = self.table.selectionModel().selectedRows()[0].row()
-            self.linkRequested.emit(int(self.table.item(row, FRAME).text()), int(self.table.item(row, TARGET).text()))
+            index, = self.visibleSelectedRows()
+            self.linkRequested.emit(*self.observationAt(index.row()))
 
 
     def requestDelete(self):
         if self.deleteAction.isEnabled():
-            rows = self.table.selectionModel().selectedRows(NAME)
-            self.deleteRequested.emit([int(index.data(Qt.ItemDataRole.UserRole)) for index in rows])
+            self.deleteRequested.emit([int(index.data(ROW_ID_ROLE)) for index in self.visibleSelectedRows()])
+
+    def visibleSelectedRows(self):
+        return [index for index in self.table.selectionModel().selectedRows(NAME)
+                if not self.table.isRowHidden(index.row())]
+
+    def observationAt(self, row):
+        return (int(self.table.item(row, FRAME).data(Qt.ItemDataRole.DisplayRole)),
+                int(self.table.item(row, NAME).data(TARGET_ROLE)))
+
+    def selectTarget(self, frame, target):
+        """Select a visible measurement for the marker without navigating back to it."""
+        matching = None
+        if target is not None:
+            for row in range(self.table.rowCount()):
+                if self.table.isRowHidden(row) or self.observationAt(row) != (frame, target):
+                    continue
+                item = self.table.item(row, NAME)
+                if matching is None:
+                    matching = item
+                if item.data(MEASUREMENT_ROLE) == 'length':
+                    matching = item
+                    break
+        selection = self.table.selectionModel()
+        if matching is None:
+            selection.clear()
+        else:
+            flags = QItemSelectionModel.SelectionFlag
+            selection.setCurrentIndex(self.table.indexFromItem(matching), flags.ClearAndSelect | flags.Rows)
+            self.table.scrollToItem(matching)
+
+    def applyFilters(self):
+        if self.filling:
+            return
+        text = [field.text().strip().casefold() for field in self.columnFilters]
+        numericBounds = {}
+        for column in (LENGTH, FRAME):
+            if text[column]:
+                values = text[column].replace(',', '.').split('-', 1)
+                try:
+                    numericBounds[column] = (float(values[0]), float(values[-1]))
+                except ValueError:
+                    numericBounds[column] = (float('inf'), float('-inf'))
+
+        selection = self.table.selectionModel()
+        selected = {index.row(): index for index in selection.selectedRows(NAME)}
+        flags = QItemSelectionModel.SelectionFlag
+        for row in range(self.table.rowCount()):
+            matches = all(not text[column] or text[column] in self.table.item(row, column).text().casefold()
+                          for column in (NAME, SPECIES))
+            for column, (low, high) in numericBounds.items():
+                value = self.table.item(row, column).data(Qt.ItemDataRole.DisplayRole)
+                matches = matches and isinstance(value, (int, float)) and low <= value <= high
+            self.table.setRowHidden(row, not matches)
+            if not matches and row in selected:
+                selection.select(selected[row], flags.Deselect | flags.Rows)
+        current = selection.currentIndex()
+        if current.isValid() and self.table.isRowHidden(current.row()):
+            selection.clearCurrentIndex()
+        self.updateDeleteAction()
 
 
     def showContextMenu(self, position):
@@ -132,9 +216,14 @@ class MeasurementsDock(QDockWidget):
         menu.exec(self.table.viewport().mapToGlobal(position))
 
 
-    def setDeployment(self, dataDB, deployment):
+    def setDeployment(self, dataDB, deployment, projectSpecies=()):
+        if dataDB is not self.dataDB or deployment != self.deployment:
+            for field in self.columnFilters:
+                with QSignalBlocker(field):
+                    field.clear()
         self.dataDB = dataDB
         self.deployment = deployment
+        self.projectSpecies = tuple(projectSpecies)
         self.refresh()
 
 
@@ -149,28 +238,37 @@ class MeasurementsDock(QDockWidget):
         self.filling = True
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
-        query = self.dataDB.dbQuery("SELECT l.rowid, l.name, l.frame_number, l.target_number, t.species_group, l.line_label, l.length, p.range, l.error, t.target_link_frame, t.target_link "+
+        deployment = sqlQuote(self.deployment)
+        speciesRows = self.dataDB.dbQuery("SELECT DISTINCT species_group FROM targets WHERE deployment_id='"
+                                         +deployment+"' AND species_group IS NOT NULL")
+        self.knownSpecies = {speciesKey(species): species for species in self.projectSpecies if species}
+        for species, in speciesRows:
+            if species:
+                self.knownSpecies.setdefault(speciesKey(species), species)
+        query = self.dataDB.dbQuery("SELECT l.rowid, l.name, l.frame_number, l.target_number, t.species_group, l.line_label, l.length "+
             "FROM lines l LEFT JOIN targets t ON t.deployment_id=l.deployment_id AND t.frame_number=l.frame_number AND t.target_number=l.target_number "+
-            "LEFT JOIN points p ON p.deployment_id=l.deployment_id AND p.frame_number=l.frame_number AND p.target_number=l.target_number "+
-            "AND p.point_label='range_to_target' WHERE l.deployment_id='"+sqlQuote(self.deployment)+"' ORDER BY l.frame_number, l.target_number")
-        for rowid, name, frame, target, species, label, length, rng, error, sourceFrame, sourceTarget in query:
+            "WHERE l.deployment_id='"+deployment+"' ORDER BY l.frame_number, l.target_number")
+        for rowid, name, frame, target, species, label, length in query:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            values = [name or '', species or '', self.number(length), int(frame), int(target), label or '',
-                      self.number(rng), self.number(error), f'{sourceFrame} / {sourceTarget}' if sourceFrame is not None else '']
+            values = [name or '', species or '', self.number(length), int(frame)]
             for col, value in enumerate(values):
                 item = QTableWidgetItem()
                 #  numbers are stored as numbers so that the columns sort correctly
                 item.setData(Qt.ItemDataRole.DisplayRole, value)
                 if col == NAME:
-                    item.setData(Qt.ItemDataRole.UserRole, rowid)
+                    item.setData(ROW_ID_ROLE, rowid)
+                    item.setData(TARGET_ROLE, int(target))
+                    item.setData(MEASUREMENT_ROLE, label)
                     item.setToolTip('Double-click to edit the observation ID. Linked observations share the same ID.')
                 else:
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.table.setItem(row, col, item)
+            self.updateSpeciesWarning(row)
         self.table.setSortingEnabled(True)
-        self.table.scrollToBottom()
         self.filling = False
+        self.applyFilters()
+        self.table.scrollToBottom()
         self.refreshed.emit()
 
 
@@ -185,6 +283,23 @@ class MeasurementsDock(QDockWidget):
             return ''
         return round(float(value), 2)
 
+    def updateSpeciesWarning(self, row):
+        obs_id = self.table.item(row, NAME).text()
+        speciesItem = self.table.item(row, SPECIES)
+        species = speciesItem.text()
+        idKey = speciesKey(obs_id)
+        prefix, _, suffix = idKey.rpartition(' ')
+        impliedSpecies = self.knownSpecies.get(idKey) or (self.knownSpecies.get(prefix) if suffix.isdecimal() else None)
+        if species and impliedSpecies and speciesKey(species) != speciesKey(impliedSpecies):
+            message = f'Species mismatch. The recorded species is {species}, but obs_id “{obs_id}” indicates {impliedSpecies}. Check the annotation or link.'
+            speciesItem.setIcon(self.table.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning))
+            speciesItem.setToolTip(message)
+            speciesItem.setData(Qt.ItemDataRole.AccessibleDescriptionRole, message)
+        else:
+            speciesItem.setIcon(QIcon())
+            speciesItem.setToolTip('')
+            speciesItem.setData(Qt.ItemDataRole.AccessibleDescriptionRole, None)
+
 
     def nameChanged(self, item):
         '''
@@ -193,21 +308,21 @@ class MeasurementsDock(QDockWidget):
         if self.filling or item.column() != NAME:
             return
         name = item.text().strip()
-        observation = (int(self.table.item(item.row(), FRAME).text()), int(self.table.item(item.row(), TARGET).text()))
+        observation = self.observationAt(item.row())
         if targetlinks.has_identity(self.dataDB.db, self.deployment, observation):
             if name:
                 targetlinks.rename(self.dataDB.db, self.deployment, observation, name)
             self.refresh()
         else:
-            self.dataDB.dbExec("UPDATE lines SET name='"+sqlQuote(name)+"' WHERE rowid="+str(int(item.data(Qt.ItemDataRole.UserRole))))
+            self.dataDB.dbExec("UPDATE lines SET name='"+sqlQuote(name)+"' WHERE rowid="+str(int(item.data(ROW_ID_ROLE))))
+            self.updateSpeciesWarning(item.row())
+            self.applyFilters()
         self.fishRenamed.emit()
 
 
     def rowClicked(self, row, column):
         if (QApplication.keyboardModifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
-                or len(self.table.selectionModel().selectedRows()) > 1):
+                or len(self.visibleSelectedRows()) > 1):
             return
-        frame = self.table.item(row, FRAME)
-        target = self.table.item(row, TARGET)
-        if frame is not None and target is not None:
-            self.goToTarget.emit(int(frame.data(Qt.ItemDataRole.DisplayRole)), int(target.data(Qt.ItemDataRole.DisplayRole)))
+        if self.table.item(row, NAME) is not None and not self.table.isRowHidden(row):
+            self.goToTarget.emit(*self.observationAt(row))
